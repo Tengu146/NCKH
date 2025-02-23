@@ -15,7 +15,10 @@
     <!-- Khu vực nhập dữ liệu và chọn thuật toán -->
     <section id="input-section">
       <h3>Nhập dữ liệu đồ thị</h3>
-      <textarea id="graphData" placeholder="Nhập cạnh theo định dạng: A B 3\nB C 4\nC A 5"></textarea>
+      <textarea id="graphData" placeholder="Nhập cạnh theo định dạng: A B 3
+                          B C 4
+                          C A 5"
+                          ></textarea>
       <button id="drawGraphButton">Vẽ Đồ Thị</button>
       <h2>Cấu hình thuật toán</h2>
       <label for="algorithm">Thuật toán:</label>
@@ -28,10 +31,10 @@
       <br>
       <br>
       <label for="startNode">Điểm đầu:</label>
-      <select id="startNode"></select>
-
+      <input type="text" id="startNode" placeholder="Nhập điểm đầu">
+      <br>
       <label for="endNode">Điểm cuối:</label>
-      <select id="endNode"></select>
+      <input type="text" id="endNode" placeholder="Nhập điểm cuối">
 
       <button id="run">Chạy Thuật Toán</button>
     </section>
