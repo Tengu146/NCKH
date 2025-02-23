@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mô phỏng thuật toán đồ thị</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Mô phỏng thuật toán đồ thị</h1>
+  </header>
+  
+  <main id="main-container">
+    <!-- Khu vực nhập dữ liệu và chọn thuật toán -->
+    <section id="input-section">
+      <h3>Nhập dữ liệu đồ thị</h3>
+      <textarea id="graphData" placeholder="Nhập cạnh theo định dạng: A B 3\nB C 4\nC A 5"></textarea>
+      <button id="drawGraphButton">Vẽ Đồ Thị</button>
+      <h2>Cấu hình thuật toán</h2>
+      <label for="algorithm">Thuật toán:</label>
+      <select id="algorithm">
+        <option value="dfs">DFS</option>
+        <option value="bfs">BFS</option>
+        <option value="dijkstra">Dijkstra</option>
+        <option value="kruskal">Kruskal</option>
+      </select>
+      <br>
+      <br>
+      <label for="startNode">Điểm đầu:</label>
+      <select id="startNode"></select>
+
+      <label for="endNode">Điểm cuối:</label>
+      <select id="endNode"></select>
+
+      <button id="run">Chạy Thuật Toán</button>
+    </section>
+
+    <!-- Khu vực hiển thị kết quả -->
+    <section id="output-section">
+      <h2>Kết quả mô phỏng</h2>
+      <canvas id="graphCanvas"></canvas>
+    </section>
+  </main>
+  
+  <script src="script.js"></script>
+</body>
+</html>
