@@ -28,54 +28,75 @@ function updateStartNodeOptions() {
 // Hàm lấy dữ liệu từ người dùng
 function parseInput() {
   const graphData = document.getElementById('graphData').value.trim();
-  const lines = graphData.split('\n');
+  const lines = graphData.split('\n').filter(line => line.trim() !== ''); // Loại bỏ dòng trống
 
-  const nodesSet = new Set(); // Dùng Set để tránh trùng lặp đỉnh
+  const nodesSet = new Set(); // Lưu trữ các đỉnh duy nhất
   const edges = [];
 
-  lines.forEach(line => {
-    const parts = line.split(/\s+/); // Tách theo khoảng trắng
-    if (parts.length === 3) {
+  // Phân tích từng dòng dữ liệu
+  lines.forEach((line, index) => {
+    const parts = line.trim().split(/\s+/); // Tách theo khoảng trắng
+    if (parts.length >= 3) { // Đảm bảo có đủ 3 phần (from, to, weight)
       const [from, to, weight] = parts;
-      nodesSet.add(from);
-      nodesSet.add(to);
+      nodesSet.add(from); // Thêm đỉnh nguồn
+      nodesSet.add(to);   // Thêm đỉnh đích
       edges.push({ from, to, weight: parseFloat(weight) });
+    } else {
+      console.warn(`Dòng ${index + 1} không đúng định dạng: "${line}"`);
     }
   });
 
-  // Tạo danh sách đỉnh và cạnh
-  graph.nodes = Array.from(nodesSet).map((id, index) => ({
-    id,
-    x: 100 + (index % 5) * 150, // Xếp đỉnh thành lưới
-    y: 100 + Math.floor(index / 5) * 150,
-  }));
+  // Tạo danh sách đỉnh và tọa độ
+  const nodesArray = Array.from(nodesSet);
+  const radius = Math.min(canvas.width, canvas.height) / 2 - 50; // Bán kính hình tròn
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+
+  // Tạo danh sách các đỉnh với tọa độ
+  graph.nodes = nodesArray.map((id, index) => {
+    const angle = (index / nodesArray.length) * 2 * Math.PI;
+    return {
+      id,
+      x: centerX + radius * Math.cos(angle),
+      y: centerY + radius * Math.sin(angle),
+    };
+  });
   graph.edges = edges;
 
-  updateStartNodeOptions(); // Cập nhật danh sách chọn đỉnh bắt đầu
-}
+  // Log để kiểm tra
+  console.log("Nodes:", graph.nodes);
+  console.log("Edges:", graph.edges);
 
+  updateStartNodeOptions(); // Cập nhật danh sách chọn đỉnh
+}
 // Vẽ đồ thị
 function drawGraph() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  console.log("Drawing edges:", graph.edges);
+  console.log("Drawing nodes:", graph.nodes);
 
   // Vẽ các cạnh
   graph.edges.forEach(edge => {
     const fromNode = graph.nodes.find(node => node.id === edge.from);
     const toNode = graph.nodes.find(node => node.id === edge.to);
 
-    // Vẽ đường nối
-    ctx.beginPath();
-    ctx.moveTo(fromNode.x, fromNode.y);
-    ctx.lineTo(toNode.x, toNode.y);
-    ctx.strokeStyle = '#ccc';
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    if (fromNode && toNode) { // Đảm bảo cả hai đỉnh đều tồn tại
+      // Vẽ đường nối
+      ctx.beginPath();
+      ctx.moveTo(fromNode.x, fromNode.y);
+      ctx.lineTo(toNode.x, toNode.y);
+      ctx.strokeStyle = '#ccc';
+      ctx.lineWidth = 2;
+      ctx.stroke();
 
-    // Hiển thị trọng số
-    const midX = (fromNode.x + toNode.x) / 2;
-    const midY = (fromNode.y + toNode.y) / 2;
-    ctx.fillStyle = '#000';
-    ctx.fillText(edge.weight, midX, midY);
+      // Hiển thị trọng số
+      const midX = (fromNode.x + toNode.x) / 2;
+      const midY = (fromNode.y + toNode.y) / 2;
+      ctx.fillStyle = '#000';
+      ctx.font = '12px Arial'; // Đảm bảo font rõ ràng
+      ctx.fillText(edge.weight, midX, midY);
+    }
   });
 
   // Vẽ các đỉnh
@@ -91,34 +112,46 @@ function drawGraph() {
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    ctx.font = '14px Arial'; // Đảm bảo chữ đủ lớn để đọc
     ctx.fillText(node.id, node.x, node.y);
   });
+}
+
+function displayResult(message) {
+  const resultTextarea = document.getElementById('result');
+  resultTextarea.value = message;
 }
 
 // Thuật toán DFS
 function dfs(start, end) {
   const visited = new Set();
   let found = false;
+  let path = [];
   function traverse(node) {
     if (visited.has(node) || found) return;
     visited.add(node);
+    path.push(node);
     console.log('DFS:', node);
     if (node === end) {
       found = true;
       console.log('Found:', node);
+      displayResult(`DFS Path: ${path.join(' -> ')}`);
       return;
     }
     graph.edges
       .filter(edge => edge.from === node || edge.to === node)
       .forEach(edge => traverse(edge.from === node ? edge.to : edge.from));
+    if (!found) path.pop(); // Remove node from path if not found
   }
   traverse(start);
+  if (!found) displayResult('DFS: Không tìm thấy đường đi');
 }
 
 // Thuật toán BFS
 function bfs(start, end) {
   const queue = [start];
   const visited = new Set();
+  const prev = {};
   visited.add(start);
   let found = false;
 
@@ -128,6 +161,13 @@ function bfs(start, end) {
     if (node === end) {
       found = true;
       console.log('Found:', node);
+      let path = [];
+      while (node) {
+        path.push(node);
+        node = prev[node];
+      }
+      path.reverse();
+      displayResult(`BFS Path: ${path.join(' -> ')}`);
       break;
     }
     graph.edges
@@ -136,10 +176,12 @@ function bfs(start, end) {
         const nextNode = edge.from === node ? edge.to : edge.from;
         if (!visited.has(nextNode)) {
           visited.add(nextNode);
+          prev[nextNode] = node;
           queue.push(nextNode);
         }
       });
   }
+  if (!found) displayResult('BFS: Không tìm thấy đường đi');
 }
 
 // Thuật toán Dijkstra
@@ -157,6 +199,13 @@ function dijkstra(start, end) {
 
     if (minNode === end) {
       console.log('Found:', minNode);
+      let path = [];
+      while (minNode) {
+        path.push(minNode);
+        minNode = prev[minNode];
+      }
+      path.reverse();
+      displayResult(`Dijkstra Path: ${path.join(' -> ')}`);
       break;
     }
 
@@ -171,32 +220,7 @@ function dijkstra(start, end) {
       }
     });
   }
-  console.log('Dijkstra:', distances);
-}
-
-// Thuật toán Kruskal
-function kruskal() {
-  const edges = [...graph.edges].sort((a, b) => a.weight - b.weight);
-  const parent = {};
-  graph.nodes.forEach(node => parent[node.id] = node.id);
-
-  function find(node) {
-    if (parent[node] === node) return node;
-    return parent[node] = find(parent[node]);
-  }
-
-  function union(node1, node2) {
-    parent[find(node1)] = find(node2);
-  }
-
-  const mst = [];
-  edges.forEach(edge => {
-    if (find(edge.from) !== find(edge.to)) {
-      mst.push(edge);
-      union(edge.from, edge.to);
-    }
-  });
-  console.log('Kruskal:', mst);
+  if (distances[end] === Infinity) displayResult('Dijkstra: Không tìm thấy đường đi');
 }
 
 // Chạy thuật toán
@@ -220,9 +244,6 @@ function runAlgorithm(algorithm) {
     case 'dijkstra':
       dijkstra(startNode, endNode);
       break;
-    case 'kruskal':
-      kruskal();
-      break;
     default:
       console.log('Thuật toán không hợp lệ');
   }
@@ -240,5 +261,13 @@ document.getElementById('drawGraphButton').addEventListener('click', () => {
 });
 
 // Khởi tạo canvas
-canvas.width = document.getElementById('output-section').clientWidth;
-canvas.height = document.getElementById('output-section').clientHeight;
+// Khởi tạo canvas
+function resizeCanvas() {
+  const outputSection = document.getElementById('output-section');
+  canvas.width = outputSection.clientWidth - 20; // Trừ padding
+  canvas.height = outputSection.clientHeight - 40; // Trừ padding và tiêu đề
+}
+
+// Gọi hàm resize khi tải trang và khi cửa sổ thay đổi kích thước
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);

@@ -16,7 +16,7 @@
     <section id="input-section">
       <h3>Nhập dữ liệu đồ thị</h3>
       <textarea id="graphData" placeholder="Nhập cạnh theo định dạng: A B 3
-                          B C 4
+                          B C 4   
                           C A 5"
                           ></textarea>
       <button id="drawGraphButton">Vẽ Đồ Thị</button>
@@ -26,7 +26,6 @@
         <option value="dfs">DFS</option>
         <option value="bfs">BFS</option>
         <option value="dijkstra">Dijkstra</option>
-        <option value="kruskal">Kruskal</option>
       </select>
       <br>
       <br>
@@ -37,12 +36,16 @@
       <input type="text" id="endNode" placeholder="Nhập điểm cuối">
 
       <button id="run">Chạy Thuật Toán</button>
+      <br>
+      <label for="result">Kết quả:</label>
+      <textarea id="result" rows="10" cols="50" readonly></textarea>
     </section>
 
     <!-- Khu vực hiển thị kết quả -->
     <section id="output-section">
       <h2>Kết quả mô phỏng</h2>
       <canvas id="graphCanvas"></canvas>
+      
     </section>
   </main>
   
