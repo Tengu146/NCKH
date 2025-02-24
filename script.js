@@ -36,7 +36,7 @@ function parseInput() {
   // Phân tích từng dòng dữ liệu
   lines.forEach((line, index) => {
     const parts = line.trim().split(/\s+/); // Tách theo khoảng trắng
-    if (parts.length >= 3) { // Đảm bảo có đủ 3 phần (from, to, weight)
+    if (parts.length === 3) { // Đảm bảo có đủ 3 phần (from, to, weight)
       const [from, to, weight] = parts;
       nodesSet.add(from); // Thêm đỉnh nguồn
       nodesSet.add(to);   // Thêm đỉnh đích
@@ -69,6 +69,7 @@ function parseInput() {
 
   updateStartNodeOptions(); // Cập nhật danh sách chọn đỉnh
 }
+
 // Vẽ đồ thị
 function drawGraph() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -260,7 +261,6 @@ document.getElementById('drawGraphButton').addEventListener('click', () => {
   drawGraph(); // Vẽ lại đồ thị
 });
 
-// Khởi tạo canvas
 // Khởi tạo canvas
 function resizeCanvas() {
   const outputSection = document.getElementById('output-section');
