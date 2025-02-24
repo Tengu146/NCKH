@@ -8,22 +8,22 @@ let graph = {
 };
 
 // Hàm cập nhật danh sách chọn đỉnh bắt đầu
-function updateStartNodeOptions() {
-  const startNodeSelect = document.getElementById('startNode');
-  const endNodeSelect = document.getElementById('endNode');
-  startNodeSelect.innerHTML = ''; // Xóa các tùy chọn cũ
-  endNodeSelect.innerHTML = ''; // Xóa các tùy chọn cũ
+// function updateStartNodeOptions() {
+//   const startNodeSelect = document.getElementById('startNode');
+//   const endNodeSelect = document.getElementById('endNode');
+//   startNodeSelect.innerHTML = ''; // Xóa các tùy chọn cũ
+//   endNodeSelect.innerHTML = ''; // Xóa các tùy chọn cũ
 
-  graph.nodes.forEach(node => {
-    const option = document.createElement('option');
-    option.value = node.id;
-    option.text = node.id;
-    startNodeSelect.appendChild(option);
+//   graph.nodes.forEach(node => {
+//     const option = document.createElement('option');
+//     option.value = node.id;
+//     option.text = node.id;
+//     startNodeSelect.appendChild(option);
 
-    const optionClone = option.cloneNode(true);
-    endNodeSelect.appendChild(optionClone);
-  });
-}
+//     const optionClone = option.cloneNode(true);
+//     endNodeSelect.appendChild(optionClone);
+//   });
+// }
 
 // Hàm lấy dữ liệu từ người dùng
 function parseInput() {
@@ -66,10 +66,7 @@ function parseInput() {
   // Log để kiểm tra
   console.log("Nodes:", graph.nodes);
   console.log("Edges:", graph.edges);
-
-  updateStartNodeOptions(); // Cập nhật danh sách chọn đỉnh
 }
-
 // Vẽ đồ thị
 function drawGraph() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -229,11 +226,26 @@ function runAlgorithm(algorithm) {
   parseInput(); // Lấy và phân tích dữ liệu đồ thị
   drawGraph(); // Vẽ lại đồ thị
 
-  const startNodeSelect = document.getElementById('startNode');
-  const endNodeSelect = document.getElementById('endNode');
-  const startNode = startNodeSelect.value;
-  const endNode = endNodeSelect.value;
-  if (!startNode || !endNode) return;
+  const startNodeInput = document.getElementById('startNode').value.trim();
+  const endNodeInput = document.getElementById('endNode').value.trim();
+
+  // Kiểm tra xem có nhập giá trị không
+  if (!startNodeInput || !endNodeInput) {
+    displayResult("Vui lòng nhập điểm đầu và điểm cuối.");
+    return;
+  }
+
+  // Kiểm tra xem điểm có tồn tại trong đồ thị không
+  const startNodeExists = graph.nodes.some(node => node.id === startNodeInput);
+  const endNodeExists = graph.nodes.some(node => node.id === endNodeInput);
+
+  if (!startNodeExists || !endNodeExists) {
+    displayResult("Điểm đầu hoặc điểm cuối không tồn tại trong đồ thị.");
+    return;
+  }
+
+  const startNode = startNodeInput;
+  const endNode = endNodeInput;
 
   switch (algorithm) {
     case 'dfs':
@@ -249,7 +261,6 @@ function runAlgorithm(algorithm) {
       console.log('Thuật toán không hợp lệ');
   }
 }
-
 // Lắng nghe sự kiện
 document.getElementById('run').addEventListener('click', () => {
   const algorithm = document.getElementById('algorithm').value;
