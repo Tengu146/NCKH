@@ -7,23 +7,7 @@ let graph = {
   edges: [],
 };
 
-// Hàm cập nhật danh sách chọn đỉnh bắt đầu
-// function updateStartNodeOptions() {
-//   const startNodeSelect = document.getElementById('startNode');
-//   const endNodeSelect = document.getElementById('endNode');
-//   startNodeSelect.innerHTML = ''; // Xóa các tùy chọn cũ
-//   endNodeSelect.innerHTML = ''; // Xóa các tùy chọn cũ
-
-//   graph.nodes.forEach(node => {
-//     const option = document.createElement('option');
-//     option.value = node.id;
-//     option.text = node.id;
-//     startNodeSelect.appendChild(option);
-
-//     const optionClone = option.cloneNode(true);
-//     endNodeSelect.appendChild(optionClone);
-//   });
-// }
+let foundPath = [];
 
 // Hàm lấy dữ liệu từ người dùng
 function parseInput() {
@@ -71,9 +55,6 @@ function parseInput() {
 function drawGraph() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  console.log("Drawing edges:", graph.edges);
-  console.log("Drawing nodes:", graph.nodes);
-
   // Vẽ các cạnh
   graph.edges.forEach(edge => {
     const fromNode = graph.nodes.find(node => node.id === edge.from);
@@ -96,6 +77,22 @@ function drawGraph() {
       ctx.fillText(edge.weight, midX, midY);
     }
   });
+
+  // Vẽ đường đi được tìm thấy
+  if (foundPath.length > 0) {
+    ctx.strokeStyle = 'red';
+    ctx.lineWidth = 4;
+    for (let i = 0; i < foundPath.length - 1; i++) {
+      const fromNode = graph.nodes.find(node => node.id === foundPath[i]);
+      const toNode = graph.nodes.find(node => node.id === foundPath[i + 1]);
+      if (fromNode && toNode) {
+        ctx.beginPath();
+        ctx.moveTo(fromNode.x, fromNode.y);
+        ctx.lineTo(toNode.x, toNode.y);
+        ctx.stroke();
+      }
+    }
+  }
 
   // Vẽ các đỉnh
   graph.nodes.forEach(node => {
@@ -134,6 +131,8 @@ function dfs(start, end) {
       found = true;
       console.log('Found:', node);
       displayResult(`DFS Path: ${path.join(' -> ')}`);
+      foundPath = path.slice(); // Lưu đường đi được tìm thấy
+      drawGraph(); // Vẽ lại đồ thị với đường đi được tìm thấy
       return;
     }
     graph.edges
@@ -166,6 +165,8 @@ function bfs(start, end) {
       }
       path.reverse();
       displayResult(`BFS Path: ${path.join(' -> ')}`);
+      foundPath = path.slice(); // Lưu đường đi được tìm thấy
+      drawGraph(); // Vẽ lại đồ thị với đường đi được tìm thấy
       break;
     }
     graph.edges
@@ -204,6 +205,8 @@ function dijkstra(start, end) {
       }
       path.reverse();
       displayResult(`Dijkstra Path: ${path.join(' -> ')}`);
+      foundPath = path.slice(); // Lưu đường đi được tìm thấy
+      drawGraph(); // Vẽ lại đồ thị với đường đi được tìm thấy
       break;
     }
 
