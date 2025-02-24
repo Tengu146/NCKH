@@ -159,14 +159,15 @@ function bfs(start, end) {
       found = true;
       console.log('Found:', node);
       let path = [];
-      while (node) {
-        path.push(node);
-        node = prev[node];
+      let current = node; // Sử dụng biến mới để truy ngược
+      while (current) {
+        path.push(current);
+        current = prev[current];
       }
       path.reverse();
       displayResult(`BFS Path: ${path.join(' -> ')}`);
-      foundPath = path.slice(); // Lưu đường đi được tìm thấy
-      drawGraph(); // Vẽ lại đồ thị với đường đi được tìm thấy
+      foundPath = path.slice();
+      drawGraph();
       break;
     }
     graph.edges
