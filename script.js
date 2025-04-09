@@ -1,15 +1,15 @@
 const canvas = document.getElementById('graphCanvas');
 const ctx = canvas.getContext('2d');
 
-// Cấu hình đồ thị
 let graph = {
   nodes: [],
   edges: [],
+  directed: false,
+  multigraph: false,
 };
 
 let foundPath = [];
 
-// Xử lý radio button
 const manualInputRadio = document.getElementById('manualInput');
 const fileInputRadio = document.getElementById('fileInput');
 const manualInputSection = document.getElementById('manual-input-section');
@@ -21,19 +21,15 @@ const fileNameDisplay = document.getElementById('fileName');
 manualInputRadio.addEventListener('change', toggleInputMethod);
 fileInputRadio.addEventListener('change', toggleInputMethod);
 
-uploadFileButton.addEventListener('click', () => {
-  fileInput.click();
-});
+uploadFileButton.addEventListener('click', () => fileInput.click());
 
 fileInput.addEventListener('change', () => {
   const file = fileInput.files[0];
   if (file) {
     fileNameDisplay.textContent = `Đã chọn: ${file.name}`;
-    console.log('File selected:', file.name);
     processFile(file);
   } else {
     fileNameDisplay.textContent = 'Chưa có file nào được chọn';
-    console.log('No file selected');
   }
 });
 
@@ -41,49 +37,68 @@ function toggleInputMethod() {
   if (manualInputRadio.checked) {
     manualInputSection.style.display = 'block';
     fileInputSection.style.display = 'none';
-    console.log('Switched to manual input');
   } else if (fileInputRadio.checked) {
     manualInputSection.style.display = 'none';
     fileInputSection.style.display = 'block';
     fileNameDisplay.textContent = 'Chưa có file nào được chọn';
     fileInput.value = '';
-    console.log('Switched to file input');
   }
 }
 
-// Hàm xử lý file (txt, csv, xlsx)
+function detectGraphProperties() {
+  const edgeMap = new Map();
+  graph.edges.forEach(edge => {
+    const key = `${edge.from}-${edge.to}`;
+    const reverseKey = `${edge.to}-${edge.from}`;
+    if (!edgeMap.has(key)) edgeMap.set(key, []);
+    edgeMap.get(key).push(edge.weight);
+    if (!edgeMap.has(reverseKey)) edgeMap.set(reverseKey, []);
+  });
+
+  // Kiểm tra đa đồ thị
+  graph.multigraph = Array.from(edgeMap.values()).some(weights => weights.length > 1);
+
+  // Kiểm tra đồ thị có hướng
+  graph.directed = false;
+  for (const [key, weights] of edgeMap) {
+    const [from, to] = key.split('-');
+    const reverseKey = `${to}-${from}`;
+    const reverseWeights = edgeMap.get(reverseKey);
+    if (reverseWeights.length === 0 || !weights.every(w => reverseWeights.includes(w))) {
+      graph.directed = true;
+      break;
+    }
+  }
+
+  console.log(`Detected: Directed=${graph.directed}, Multigraph=${graph.multigraph}`);
+  displayGraphType();
+}
+
+function displayGraphType() {
+  let typeText = "Loại đồ thị: ";
+  if (graph.multigraph) {
+    typeText += "Đa đồ thị ";
+  } else {
+    typeText += "Đồ thị đơn ";
+  }
+  typeText += graph.directed ? "có hướng" : "vô hướng";
+  document.getElementById('graphType').textContent = typeText;
+}
+
 function processFile(file) {
   graph.nodes = [];
   graph.edges = [];
   const nodesSet = new Set();
-
   const fileExtension = file.name.split('.').pop().toLowerCase();
-  console.log('File extension:', fileExtension);
 
   if (fileExtension === 'txt' || fileExtension === 'csv') {
     const reader = new FileReader();
     reader.onload = function(e) {
       const text = e.target.result;
       const lines = text.split('\n').filter(line => line.trim() !== '');
-      console.log('File content:', lines);
-
-      for (let i = 0; i < lines.length; i++) {
-        const parts = lines[i].trim().split(/[\s,]+/);
-        if (parts.length !== 3) {
-          displayResult(`Lỗi: Dòng ${i + 1} không đúng định dạng: "${lines[i]}"\nĐịnh dạng đúng: A B 3 hoặc A,B,3`);
-          return;
-        }
-        const [from, to, weight] = parts;
-        const w = parseFloat(weight);
-        if (isNaN(w)) {
-          displayResult(`Lỗi: Trọng số ở dòng ${i + 1} không phải số: "${weight}"`);
-          return;
-        }
-        nodesSet.add(from);
-        nodesSet.add(to);
-        graph.edges.push({ from, to, weight: w });
-      }
+      parseLines(lines, nodesSet);
       generateGraphFromNodes(nodesSet);
+      detectGraphProperties();
       drawGraph();
     };
     reader.readAsText(file);
@@ -94,25 +109,9 @@ function processFile(file) {
       const workbook = XLSX.read(data, { type: 'array' });
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-      console.log('Excel rows:', rows);
-
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        if (row.length < 3) {
-          displayResult(`Lỗi: Dòng ${i + 1} trong Excel không đủ 3 cột (from, to, weight)`);
-          return;
-        }
-        const [from, to, weight] = row;
-        const w = parseFloat(weight);
-        if (isNaN(w)) {
-          displayResult(`Lỗi: Trọng số ở dòng ${i + 1} không phải số: "${weight}"`);
-          return;
-        }
-        nodesSet.add(from.toString());
-        nodesSet.add(to.toString());
-        graph.edges.push({ from: from.toString(), to: to.toString(), weight: w });
-      }
+      parseLines(rows.map(row => row.join(' ')), nodesSet);
       generateGraphFromNodes(nodesSet);
+      detectGraphProperties();
       drawGraph();
     };
     reader.readAsArrayBuffer(file);
@@ -121,20 +120,36 @@ function processFile(file) {
   }
 }
 
-// Hàm xử lý dữ liệu nhập tay
+function parseLines(lines, nodesSet) {
+  for (let i = 0; i < lines.length; i++) {
+    const parts = lines[i].trim().split(/[\s,]+/);
+    if (parts.length !== 3) {
+      displayResult(`Lỗi: Dòng ${i + 1} không đúng định dạng: "${lines[i]}"`);
+      return;
+    }
+    const [from, to, weight] = parts;
+    const w = parseFloat(weight);
+    if (isNaN(w)) {
+      displayResult(`Lỗi: Trọng số ở dòng ${i + 1} không phải số: "${weight}"`);
+      return;
+    }
+    nodesSet.add(from);
+    nodesSet.add(to);
+    graph.edges.push({ from, to, weight: w, id: `edge-${i}` });
+  }
+}
+
 function parseManualInput() {
   graph.nodes = [];
   graph.edges = [];
   const nodesSet = new Set();
-
   const graphData = document.getElementById('graphData').value.trim();
   const lines = graphData.split('\n').filter(line => line.trim() !== '');
-  console.log('Manual input data:', lines);
 
   for (let i = 0; i < lines.length; i++) {
     const parts = lines[i].trim().split(/\s+/);
     if (parts.length !== 3) {
-      displayResult(`Lỗi: Dòng ${i + 1} không đúng định dạng: "${lines[i]}"\nĐịnh dạng đúng: A B 3`);
+      displayResult(`Lỗi: Dòng ${i + 1} không đúng định dạng: "${lines[i]}"`);
       return false;
     }
     const [from, to, weight] = parts;
@@ -145,9 +160,10 @@ function parseManualInput() {
     }
     nodesSet.add(from);
     nodesSet.add(to);
-    graph.edges.push({ from, to, weight: w });
+    graph.edges.push({ from, to, weight: w, id: `edge-${i}` });
   }
   generateGraphFromNodes(nodesSet);
+  detectGraphProperties();
   return true;
 }
 
@@ -165,33 +181,107 @@ function generateGraphFromNodes(nodesSet) {
       y: centerY + radius * Math.sin(angle),
     };
   });
-  console.log('Generated nodes:', graph.nodes);
-  console.log('Edges:', graph.edges);
 }
 
-// Vẽ đồ thị
+function drawArrow(ctx, fromX, fromY, toX, toY) {
+  const headLength = 10;
+  const dx = toX - fromX;
+  const dy = toY - fromY;
+  const angle = Math.atan2(dy, dx);
+
+  ctx.beginPath();
+  ctx.moveTo(fromX, fromY);
+  ctx.lineTo(toX, toY);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(toX, toY);
+  ctx.lineTo(toX - headLength * Math.cos(angle - Math.PI / 6), toY - headLength * Math.sin(angle - Math.PI / 6));
+  ctx.moveTo(toX, toY);
+  ctx.lineTo(toX - headLength * Math.cos(angle + Math.PI / 6), toY - headLength * Math.sin(angle + Math.PI / 6));
+  ctx.stroke();
+}
+
+function drawCurvedEdge(ctx, fromX, fromY, toX, toY, edgeIndex, totalEdges) {
+  const dx = toX - fromX;
+  const dy = toY - fromY;
+  const midX = (fromX + toX) / 2;
+  const midY = (fromY + toY) / 2;
+  const offset = 20 * (edgeIndex - (totalEdges - 1) / 2);
+
+  ctx.beginPath();
+  ctx.moveTo(fromX, fromY);
+  ctx.quadraticCurveTo(midX + offset, midY + offset, toX, toY);
+  ctx.stroke();
+
+  if (graph.directed) {
+    const angle = Math.atan2(toY - midY, toX - midX);
+    ctx.beginPath();
+    ctx.moveTo(toX, toY);
+    ctx.lineTo(toX - 10 * Math.cos(angle - Math.PI / 6), toY - 10 * Math.sin(angle - Math.PI / 6));
+    ctx.moveTo(toX, toY);
+    ctx.lineTo(toX - 10 * Math.cos(angle + Math.PI / 6), toY - 10 * Math.sin(angle + Math.PI / 6));
+    ctx.stroke();
+  }
+}
+
+function drawLoop(ctx, x, y) {
+  ctx.beginPath();
+  ctx.arc(x + 20, y - 20, 10, 0, 2 * Math.PI);
+  ctx.stroke();
+}
+
 function drawGraph() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  graph.edges.forEach(edge => {
-    const fromNode = graph.nodes.find(node => node.id === edge.from);
-    const toNode = graph.nodes.find(node => node.id === edge.to);
-
-    if (fromNode && toNode) {
-      ctx.beginPath();
-      ctx.moveTo(fromNode.x, fromNode.y);
-      ctx.lineTo(toNode.x, toNode.y);
-      ctx.strokeStyle = '#ccc';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      const midX = (fromNode.x + toNode.x) / 2;
-      const midY = (fromNode.y + toNode.y) / 2;
-      ctx.fillStyle = '#000';
-      ctx.font = '12px Arial';
-      ctx.fillText(edge.weight, midX, midY);
-    }
+  const edgeGroups = {};
+  graph.edges.forEach((edge, index) => {
+    const key = graph.directed ? `${edge.from}-${edge.to}` : [edge.from, edge.to].sort().join('-');
+    if (!edgeGroups[key]) edgeGroups[key] = [];
+    edgeGroups[key].push({ ...edge, index });
   });
+
+  for (const key in edgeGroups) {
+    const edges = edgeGroups[key];
+    edges.forEach((edge, idx) => {
+      const fromNode = graph.nodes.find(node => node.id === edge.from);
+      const toNode = graph.nodes.find(node => node.id === edge.to);
+      if (fromNode && toNode) {
+        ctx.strokeStyle = '#ccc';
+        ctx.lineWidth = 2;
+        if (edge.from === edge.to) {
+          drawLoop(ctx, fromNode.x, fromNode.y);
+          ctx.fillStyle = '#000';
+          ctx.font = '12px Arial';
+          ctx.fillText(edge.weight, fromNode.x + 20, fromNode.y - 25);
+        } else if (graph.multigraph && edges.length > 1) {
+          drawCurvedEdge(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y, idx, edges.length);
+          const midX = (fromNode.x + toNode.x) / 2;
+          const midY = (fromNode.y + toNode.y) / 2;
+          ctx.fillStyle = '#000';
+          ctx.font = '12px Arial';
+          ctx.fillText(edge.weight, midX + 20 * (idx - (edges.length - 1) / 2), midY);
+        } else if (graph.directed) {
+          drawArrow(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y);
+          const midX = (fromNode.x + toNode.x) / 2;
+          const midY = (fromNode.y + toNode.y) / 2;
+          ctx.fillStyle = '#000';
+          ctx.font = '12px Arial';
+          ctx.fillText(edge.weight, midX, midY);
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(fromNode.x, fromNode.y);
+          ctx.lineTo(toNode.x, toNode.y);
+          ctx.stroke();
+          const midX = (fromNode.x + toNode.x) / 2;
+          const midY = (fromNode.y + toNode.y) / 2;
+          ctx.fillStyle = '#000';
+          ctx.font = '12px Arial';
+          ctx.fillText(edge.weight, midX, midY);
+        }
+      }
+    });
+  }
 
   if (foundPath.length > 0) {
     ctx.strokeStyle = 'red';
@@ -200,10 +290,16 @@ function drawGraph() {
       const fromNode = graph.nodes.find(node => node.id === foundPath[i]);
       const toNode = graph.nodes.find(node => node.id === foundPath[i + 1]);
       if (fromNode && toNode) {
-        ctx.beginPath();
-        ctx.moveTo(fromNode.x, fromNode.y);
-        ctx.lineTo(toNode.x, toNode.y);
-        ctx.stroke();
+        if (fromNode.id === toNode.id) {
+          drawLoop(ctx, fromNode.x, fromNode.y);
+        } else if (graph.directed) {
+          drawArrow(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y);
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(fromNode.x, fromNode.y);
+          ctx.lineTo(toNode.x, toNode.y);
+          ctx.stroke();
+        }
       }
     }
   }
@@ -215,32 +311,33 @@ function drawGraph() {
     ctx.fill();
     ctx.strokeStyle = '#333';
     ctx.stroke();
-
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = '14px Arial';
     ctx.fillText(node.id, node.x, node.y);
   });
-  console.log('Graph drawn');
+
+  // Cập nhật thông tin đồ thị
+  const hasNegativeWeight = graph.edges.some(edge => edge.weight < 0);
+  const infoText = `Số nút: ${graph.nodes.length}\nSố cạnh: ${graph.edges.length}\nCó trọng số âm: ${hasNegativeWeight ? 'Có' : 'Không'}`;
+  document.getElementById('graphInfo').textContent = infoText;
 }
 
 function displayResult(message) {
   document.getElementById('result').value = message;
-  console.log('Result displayed:', message);
 }
 
-// Hàm xóa đồ thị
 function clearGraph() {
   graph.nodes = [];
   graph.edges = [];
   foundPath = [];
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   displayResult('Đồ thị đã được xóa.');
-  console.log('Graph cleared');
+  document.getElementById('graphInfo').textContent = 'Chưa có dữ liệu.';
+  document.getElementById('graphType').textContent = 'Loại đồ thị: Chưa xác định';
 }
 
-// Thuật toán DFS
 function dfs(start, end) {
   const visited = new Set();
   let found = false;
@@ -250,7 +347,6 @@ function dfs(start, end) {
     if (visited.has(node) || found) return;
     visited.add(node);
     path.push(node);
-    console.log('DFS visiting:', node);
     if (node === end) {
       found = true;
       displayResult(`DFS Path: ${path.join(' -> ')}`);
@@ -259,18 +355,14 @@ function dfs(start, end) {
       return;
     }
     graph.edges
-      .filter(edge => edge.from === node || edge.to === node)
-      .forEach(edge => {
-        const nextNode = edge.from === node ? edge.to : edge.from;
-        traverse(nextNode);
-      });
+      .filter(edge => edge.from === node && (!graph.directed || edge.to !== node))
+      .forEach(edge => traverse(edge.to));
     if (!found) path.pop();
   }
   traverse(start);
   if (!found) displayResult('DFS: Không tìm thấy đường đi');
 }
 
-// Thuật toán BFS
 function bfs(start, end) {
   const queue = [start];
   const visited = new Set();
@@ -280,7 +372,6 @@ function bfs(start, end) {
 
   while (queue.length && !found) {
     const node = queue.shift();
-    console.log('BFS visiting:', node);
     if (node === end) {
       found = true;
       let path = [];
@@ -296,9 +387,9 @@ function bfs(start, end) {
       break;
     }
     graph.edges
-      .filter(edge => edge.from === node || edge.to === node)
+      .filter(edge => edge.from === node && (!graph.directed || edge.to !== node))
       .forEach(edge => {
-        const nextNode = edge.from === node ? edge.to : edge.from;
+        const nextNode = edge.to;
         if (!visited.has(nextNode)) {
           visited.add(nextNode);
           prev[nextNode] = node;
@@ -309,7 +400,6 @@ function bfs(start, end) {
   if (!found) displayResult('BFS: Không tìm thấy đường đi');
 }
 
-// Thuật toán Dijkstra
 function dijkstra(start, end) {
   const distances = {};
   const prev = {};
@@ -321,7 +411,6 @@ function dijkstra(start, end) {
   while (pq.size) {
     let minNode = Array.from(pq).reduce((a, b) => (distances[a] < distances[b] ? a : b));
     pq.delete(minNode);
-    console.log('Dijkstra visiting:', minNode, 'Distance:', distances[minNode]);
 
     if (minNode === end) {
       let path = [];
@@ -338,9 +427,9 @@ function dijkstra(start, end) {
     }
 
     graph.edges
-      .filter(edge => edge.from === minNode || edge.to === minNode)
+      .filter(edge => edge.from === minNode && (!graph.directed || edge.to !== minNode))
       .forEach(edge => {
-        const neighbor = edge.from === minNode ? edge.to : edge.from;
+        const neighbor = edge.to;
         if (pq.has(neighbor)) {
           const newDist = distances[minNode] + edge.weight;
           if (newDist < distances[neighbor]) {
@@ -353,19 +442,20 @@ function dijkstra(start, end) {
   if (distances[end] === Infinity) displayResult('Dijkstra: Không tìm thấy đường đi');
 }
 
-// Thuật toán Kruskal (Tìm cây khung nhỏ nhất - MST)
 function kruskal() {
+  if (graph.directed) {
+    displayResult('Kruskal chỉ áp dụng cho đồ thị vô hướng!');
+    return;
+  }
   const parent = {};
   const rank = {};
 
-  // Hàm tìm gốc (find) với nén đường
   function find(node) {
     if (!parent[node]) parent[node] = node;
     if (parent[node] !== node) parent[node] = find(parent[node]);
     return parent[node];
   }
 
-  // Hàm gộp hai tập hợp (union)
   function union(node1, node2) {
     const root1 = find(node1);
     const root2 = find(node2);
@@ -381,7 +471,6 @@ function kruskal() {
     }
   }
 
-  // Sắp xếp cạnh theo trọng số
   const sortedEdges = [...graph.edges].sort((a, b) => a.weight - b.weight);
   const mstEdges = [];
   let totalWeight = 0;
@@ -399,13 +488,15 @@ function kruskal() {
   drawGraph();
 }
 
-// Thuật toán Prim (Tìm cây khung nhỏ nhất - MST)
 function prim() {
+  if (graph.directed) {
+    displayResult('Prim chỉ áp dụng cho đồ thị vô hướng!');
+    return;
+  }
   const visited = new Set();
   const mstEdges = [];
   let totalWeight = 0;
 
-  // Bắt đầu từ node đầu tiên
   const startNode = graph.nodes[0].id;
   visited.add(startNode);
 
@@ -413,7 +504,6 @@ function prim() {
     let minEdge = null;
     let minWeight = Infinity;
 
-    // Tìm cạnh có trọng số nhỏ nhất từ tập visited đến chưa visited
     graph.edges.forEach(edge => {
       const fromIn = visited.has(edge.from);
       const toIn = visited.has(edge.to);
@@ -423,7 +513,7 @@ function prim() {
       }
     });
 
-    if (!minEdge) break; // Không còn cạnh nào nối được
+    if (!minEdge) break;
 
     mstEdges.push(minEdge);
     totalWeight += minEdge.weight;
@@ -436,7 +526,6 @@ function prim() {
   drawGraph();
 }
 
-// Thuật toán Bellman-Ford (Đường đi ngắn nhất từ một nguồn)
 function bellmanFord(start, end) {
   const distances = {};
   const prev = {};
@@ -444,7 +533,6 @@ function bellmanFord(start, end) {
   graph.nodes.forEach(node => distances[node.id] = Infinity);
   distances[start] = 0;
 
-  // Thư giãn các cạnh (V-1 lần)
   for (let i = 0; i < graph.nodes.length - 1; i++) {
     graph.edges.forEach(edge => {
       const u = edge.from;
@@ -454,15 +542,13 @@ function bellmanFord(start, end) {
         distances[v] = distances[u] + w;
         prev[v] = u;
       }
-      // Đồ thị vô hướng, kiểm tra cả chiều ngược lại
-      if (distances[v] !== Infinity && distances[v] + w < distances[u]) {
+      if (!graph.directed && distances[v] !== Infinity && distances[v] + w < distances[u]) {
         distances[u] = distances[v] + w;
         prev[u] = v;
       }
     });
   }
 
-  // Kiểm tra chu trình âm
   for (let edge of graph.edges) {
     const u = edge.from;
     const v = edge.to;
@@ -491,12 +577,10 @@ function bellmanFord(start, end) {
   drawGraph();
 }
 
-// Thuật toán Floyd-Warshall (Đường đi ngắn nhất giữa tất cả các cặp đỉnh)
 function floyd() {
   const dist = {};
   const next = {};
 
-  // Khởi tạo ma trận khoảng cách
   graph.nodes.forEach(u => {
     dist[u.id] = {};
     next[u.id] = {};
@@ -508,12 +592,13 @@ function floyd() {
 
   graph.edges.forEach(edge => {
     dist[edge.from][edge.to] = edge.weight;
-    dist[edge.to][edge.from] = edge.weight; // Đồ thị vô hướng
     next[edge.from][edge.to] = edge.to;
-    next[edge.to][edge.from] = edge.from;
+    if (!graph.directed) {
+      dist[edge.to][edge.from] = edge.weight;
+      next[edge.to][edge.from] = edge.from;
+    }
   });
 
-  // Floyd-Warshall
   graph.nodes.forEach(k => {
     graph.nodes.forEach(i => {
       graph.nodes.forEach(j => {
@@ -556,7 +641,6 @@ function floyd() {
   drawGraph();
 }
 
-// Chạy thuật toán
 function runAlgorithm(algorithm) {
   if (!graph.nodes.length || !graph.edges.length) {
     displayResult('Vui lòng nhập dữ liệu đồ thị trước!');
@@ -579,7 +663,18 @@ function runAlgorithm(algorithm) {
     return;
   }
 
-  console.log('Running algorithm:', algorithm, 'from', startNode || 'N/A', 'to', endNode || 'N/A');
+  // Kiểm tra trọng số âm
+  const hasNegativeWeight = graph.edges.some(edge => edge.weight < 0);
+  if (hasNegativeWeight) {
+    if (algorithm === 'dijkstra') {
+      displayResult('Dijkstra không hỗ trợ trọng số âm! Vui lòng dùng Bellman-Ford hoặc Floyd-Warshall.');
+      return;
+    } else if (algorithm === 'kruskal' || algorithm === 'prim') {
+      displayResult(`${algorithm.charAt(0).toUpperCase() + algorithm.slice(1)} không đảm bảo kết quả đúng với trọng số âm!`);
+      // Tiếp tục chạy nhưng đã cảnh báo
+    }
+  }
+
   switch (algorithm) {
     case 'dfs':
       dfs(startNode, endNode);
@@ -607,7 +702,6 @@ function runAlgorithm(algorithm) {
   }
 }
 
-// Lắng nghe sự kiện
 document.getElementById('run').addEventListener('click', () => {
   const algorithm = document.getElementById('algorithm').value;
   runAlgorithm(algorithm);
@@ -626,7 +720,6 @@ document.getElementById('clearGraphButton').addEventListener('click', () => {
   clearGraph();
 });
 
-// Khởi tạo canvas
 function resizeCanvas() {
   const outputSection = document.getElementById('output-section');
   canvas.width = outputSection.clientWidth - 20;
@@ -636,5 +729,4 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
-// Khởi tạo trạng thái ban đầu
 toggleInputMethod();

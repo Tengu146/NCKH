@@ -11,11 +11,11 @@
   <header>
     <h1>Mô phỏng thuật toán đồ thị</h1>
   </header>
-  
+
   <main id="main-container">
     <section id="input-section">
       <h3>Nhập dữ liệu đồ thị</h3>
-      
+
       <div id="input-options">
         <label>
           <input type="radio" name="inputMethod" id="manualInput" checked> Nhập tay từ bàn phím
@@ -27,9 +27,7 @@
       </div>
 
       <div id="manual-input-section">
-        <textarea id="graphData" placeholder="Nhập cạnh theo định dạng: A B 3
-B C 4   
-C A 5"></textarea>
+        <textarea id="graphData" placeholder="Nhập cạnh theo định dạng: A B 3\nB C 4\nC A 5"></textarea>
       </div>
 
       <div id="file-input-section" style="display: none;">
@@ -41,6 +39,7 @@ C A 5"></textarea>
 
       <button id="drawGraphButton">Vẽ Đồ Thị</button>
       <button id="clearGraphButton">Xóa Đồ Thị</button>
+
       <h2>Cấu hình thuật toán</h2>
       <label for="algorithm">Thuật toán:</label>
       <select id="algorithm">
@@ -59,9 +58,19 @@ C A 5"></textarea>
       <label for="endNode">Điểm cuối:</label>
       <input type="text" id="endNode" placeholder="Nhập điểm cuối">
       <button id="run">Chạy Thuật Toán</button>
-      <br>
+
+      <h2>Kết quả</h2>
       <label for="result">Kết quả:</label>
       <textarea id="result" rows="10" cols="50" readonly></textarea>
+
+      <br>
+      <label for="graphInfo">Thông tin đồ thị:</label>
+      <div id="graphInfo" style="border:1px solid #ccc; padding:10px; background:#f0f0f0; margin-top:5px;">
+        Chưa có dữ liệu.
+      </div>
+      <div id="graphType" style="border:1px solid #ccc; padding:10px; background:#f0f0f0; margin-top:5px;">
+        Loại đồ thị: Chưa xác định
+      </div>
     </section>
 
     <section id="output-section">
@@ -69,7 +78,7 @@ C A 5"></textarea>
       <canvas id="graphCanvas"></canvas>
     </section>
   </main>
-  
+
   <script src="script.js"></script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'92d729458d51ad9e',t:'MTc0NDE3MTg5NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
