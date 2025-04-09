@@ -1,93 +1,109 @@
-/* Định dạng chung */
 body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background-color: #f7f7f7;
-  }
-  
-  header {
-    background-color: #4CAF50;
-    color: white;
-    padding: 1rem;
-    text-align: center;
-    width: 100%;
-  }
-  
-  main {
-    display: flex;
-    flex-direction: row;
-    width: 100%;
-    height: 90vh;
-  }
-  
-  /* Khu vực cấu hình thuật toán */
-  #input-section {
-    flex: 1;
-    background-color: #f9f9f9;
-    padding: 1rem;
-    border-right: 1px solid #ddd;
-    overflow-y: auto;
-  }
-  
-  #input-section h2 {
-    margin-top: 0;
-  }
-  
-  #input-data {
-    margin-top: 1rem;
-  }
-  
-  #input-data label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: bold;
-  }
-  
-  #input-data input,
-  #input-data textarea {
-    width: 100%;
-    padding: 0.5rem;
-    margin-bottom: 1rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-  }
-  
-  button {
-    background-color: #4CAF50;
-    color: white;
-    padding: 0.7rem 1.5rem;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-  
-  button:hover {
-    background-color: #45a049;
-  }
-  
-  /* Khu vực hiển thị kết quả */
-  #output-section {
-    flex: 2;
-    padding: 1rem;
-    position: relative;
-  }
-  
-  #graphCanvas {
-    border: 1px solid #ccc;
-    width: 100%;
-    height: 100%;
-    background-color: white;
-  }
-  #input-section textarea {
-    width: 100%;
-    height: 200px;
-    padding: 0.5rem;
-    margin-bottom: 1rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    resize: vertical;
-  }
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #f7f7f7;
+}
+
+header {
+  background-color: #4CAF50;
+  color: white;
+  padding: 1rem;
+  text-align: center;
+  width: 100%;
+}
+
+main {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  height: 90vh;
+}
+
+#input-section {
+  flex: 1;
+  background-color: #f9f9f9;
+  padding: 1rem;
+  border-right: 1px solid #ddd;
+  overflow-y: auto;
+}
+
+#input-section h2 {
+  margin-top: 0;
+}
+
+#input-options {
+  margin-bottom: 1rem;
+}
+
+#input-options label {
+  display: block;
+  margin: 0.5rem 0;
+}
+
+#manual-input-section textarea {
+  width: 100%;
+  height: 200px;
+  padding: 0.5rem;
+  margin-bottom: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
+}
+
+#file-input-section button#uploadFileButton {
+  background-color: #2196F3;
+  color: white;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin: 1rem 0;
+}
+
+#file-input-section button#uploadFileButton:hover {
+  background-color: #1976D2;
+}
+
+#file-input-section p {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+button {
+  background-color: #4CAF50;
+  color: white;
+  padding: 0.7rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin: 0.5rem 0; /* Thêm margin để các nút không dính nhau */
+}
+
+button:hover {
+  background-color: #45a049;
+}
+
+#clearGraphButton {
+  background-color: #f44336; /* Màu đỏ để phân biệt */
+}
+
+#clearGraphButton:hover {
+  background-color: #d32f2f;
+}
+
+#output-section {
+  flex: 2;
+  padding: 1rem;
+  position: relative;
+}
+
+#graphCanvas {
+  border: 1px solid #ccc;
+  width: 100%;
+  height: 100%;
+  background-color: white;
+}

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mô phỏng thuật toán đồ thị</title>
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
   <header>
@@ -12,40 +13,60 @@
   </header>
   
   <main id="main-container">
-    <!-- Khu vực nhập dữ liệu và chọn thuật toán -->
     <section id="input-section">
       <h3>Nhập dữ liệu đồ thị</h3>
-      <textarea id="graphData" placeholder="Nhập cạnh theo định dạng: A B 3
-                          B C 4   
-                          C A 5"
-                          ></textarea>
+      
+      <div id="input-options">
+        <label>
+          <input type="radio" name="inputMethod" id="manualInput" checked> Nhập tay từ bàn phím
+        </label>
+        <br>
+        <label>
+          <input type="radio" name="inputMethod" id="fileInput"> Nhập từ file
+        </label>
+      </div>
+
+      <div id="manual-input-section">
+        <textarea id="graphData" placeholder="Nhập cạnh theo định dạng: A B 3
+B C 4   
+C A 5"></textarea>
+      </div>
+
+      <div id="file-input-section" style="display: none;">
+        <input type="file" id="graphFile" accept=".txt,.csv,.xlsx" style="display: none;">
+        <button id="uploadFileButton">Tải file lên</button>
+        <p id="fileName" style="margin-top: 0.5rem; color: #666;">Chưa có file nào được chọn</p>
+        <p>Định dạng file: from,to,weight (mỗi dòng một cạnh, ví dụ: A,B,3)</p>
+      </div>
+
       <button id="drawGraphButton">Vẽ Đồ Thị</button>
+      <button id="clearGraphButton">Xóa Đồ Thị</button>
       <h2>Cấu hình thuật toán</h2>
       <label for="algorithm">Thuật toán:</label>
       <select id="algorithm">
         <option value="dfs">DFS</option>
         <option value="bfs">BFS</option>
         <option value="dijkstra">Dijkstra</option>
+        <option value="kruskal">Kruskal</option>
+        <option value="prim">Prim</option>
+        <option value="bellmanFord">Bellman-Ford</option>
+        <option value="floyd">Floyd-Warshall</option>
       </select>
-      <br>
-      <br>
+      <br><br>
       <label for="startNode">Điểm đầu:</label>
       <input type="text" id="startNode" placeholder="Nhập điểm đầu">
       <br>
       <label for="endNode">Điểm cuối:</label>
       <input type="text" id="endNode" placeholder="Nhập điểm cuối">
-
       <button id="run">Chạy Thuật Toán</button>
       <br>
       <label for="result">Kết quả:</label>
       <textarea id="result" rows="10" cols="50" readonly></textarea>
     </section>
 
-    <!-- Khu vực hiển thị kết quả -->
     <section id="output-section">
       <h2>Kết quả mô phỏng</h2>
       <canvas id="graphCanvas"></canvas>
-      
     </section>
   </main>
   
