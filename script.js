@@ -64,22 +64,17 @@ function drawGraph() {
   const edgeGroups = {};
   graph.edges.forEach((edge, index) => {
     let key;
-  
     if (graph.multigraph) {
-      // Đa đồ thị: không gộp các cạnh trùng nhau
-      key = `${edge.from}->${edge.to}`;
+      key = `${edge.from}->${edge.to}-${index}`;
     } else if (graph.directed) {
-      // Có hướng: phân biệt chiều
       key = `${edge.from}-${edge.to}`;
     } else {
-      // Vô hướng: sắp xếp lại để không phân biệt chiều
       key = [edge.from, edge.to].sort().join('-');
     }
-  
     if (!edgeGroups[key]) edgeGroups[key] = [];
     edgeGroups[key].push({ ...edge, index });
   });
-  
+
   // Vẽ các cạnh
   for (const key in edgeGroups) {
     const edges = edgeGroups[key];
@@ -102,7 +97,6 @@ function drawGraph() {
           drawCurvedEdge(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y, idx, edges.length);
           ctx.fillStyle = '#333';
           ctx.font = '12px Arial';
-          // Đặt trọng số cách xa hơn để không chồng lấp
           const weightOffset = 50 * (idx - (edges.length - 1) / 2);
           ctx.fillText(edge.weight, midX + weightOffset, midY + (weightOffset > 0 ? 15 : -15));
         } else if (graph.directed) { // Đồ thị có hướng
@@ -175,6 +169,7 @@ function drawGraph() {
   const infoText = `Số nút: ${graph.nodes.length}\nSố cạnh: ${graph.edges.length}\nCó trọng số âm: ${hasNegativeWeight ? 'Có' : 'Không'}`;
   document.getElementById('graphInfo').textContent = infoText;
 }
+
 function processFile(file) {
   graph.nodes = [];
   graph.edges = [];
@@ -284,7 +279,7 @@ function drawArrow(ctx, fromX, fromY, toX, toY) {
   const dx = toX - fromX;
   const dy = toY - fromY;
   const angle = Math.atan2(dy, dx);
-  const offset = 15; // Khoảng cách từ mũi tên đến nút
+  const offset = 15;
 
   const adjustedToX = toX - offset * Math.cos(angle);
   const adjustedToY = toY - offset * Math.sin(angle);
@@ -307,7 +302,7 @@ function drawCurvedEdge(ctx, fromX, fromY, toX, toY, edgeIndex, totalEdges) {
   const dy = toY - fromY;
   const midX = (fromX + toX) / 2;
   const midY = (fromY + toY) / 2;
-  const offset = 50 * (edgeIndex - (totalEdges - 1) / 2); // Tăng offset lên 50 để cách xa hơn
+  const offset = 50 * (edgeIndex - (totalEdges - 1) / 2);
 
   ctx.beginPath();
   ctx.moveTo(fromX, fromY);
@@ -317,7 +312,7 @@ function drawCurvedEdge(ctx, fromX, fromY, toX, toY, edgeIndex, totalEdges) {
   if (graph.directed) {
     const angle = Math.atan2(toY - midY, toX - midX);
     const headLength = 10;
-    const adjustedToX = toX - 15 * Math.cos(angle); // Rút ngắn để tránh chồng nút
+    const adjustedToX = toX - 15 * Math.cos(angle);
     const adjustedToY = toY - 15 * Math.sin(angle);
 
     ctx.beginPath();
@@ -334,8 +329,6 @@ function drawLoop(ctx, x, y) {
   ctx.arc(x + 25, y - 25, 15, 0, 2 * Math.PI);
   ctx.stroke();
 }
-
-
 
 function displayResult(message) {
   document.getElementById('result').value = message;
@@ -514,23 +507,44 @@ function kruskal() {
   drawGraph();
 }
 
+// Hàm Prim đã chỉnh sửa
 function prim() {
   if (graph.directed) {
     displayResult('Prim chỉ áp dụng cho đồ thị vô hướng!');
     return;
   }
+  if (graph.nodes.length === 0) {
+    displayResult('Đồ thị không có nút nào!');
+    return;
+  }
+
   const visited = new Set();
   const mstEdges = [];
   let totalWeight = 0;
 
+  // Bắt đầu từ nút đầu tiên
   const startNode = graph.nodes[0].id;
   visited.add(startNode);
+
+  // Nếu đồ thị là đa đồ thị, giữ tất cả cạnh; nếu không, chọn cạnh nhỏ nhất giữa hai nút
+  const availableEdges = graph.multigraph
+    ? [...graph.edges]
+    : graph.edges.reduce((acc, edge) => {
+        const key = [edge.from, edge.to].sort().join('-');
+        if (!acc[key] || acc[key].weight > edge.weight) {
+          acc[key] = edge;
+        }
+        return acc;
+      }, {});
+
+  const edgesList = graph.multigraph ? availableEdges : Object.values(availableEdges);
 
   while (visited.size < graph.nodes.length) {
     let minEdge = null;
     let minWeight = Infinity;
 
-    graph.edges.forEach(edge => {
+    // Tìm cạnh có trọng số nhỏ nhất nối từ tập đã thăm đến tập chưa thăm
+    edgesList.forEach(edge => {
       const fromIn = visited.has(edge.from);
       const toIn = visited.has(edge.to);
       if (fromIn !== toIn && edge.weight < minWeight) {
@@ -539,16 +553,32 @@ function prim() {
       }
     });
 
-    if (!minEdge) break;
+    // Nếu không tìm thấy cạnh nào, đồ thị không liên thông
+    if (!minEdge) {
+      const unvisited = graph.nodes.filter(node => !visited.has(node.id)).map(n => n.id);
+      displayResult(
+        `Prim MST:\n${mstEdges.map(e => `${e.from} -> ${e.to} (${e.weight})`).join('\n')}\n` +
+        `Total weight: ${totalWeight}\n` +
+        `Lưu ý: Đồ thị không liên thông, các nút chưa được thêm vào MST: ${unvisited.join(', ')}`
+      );
+      foundPath = mstEdges.map(edge => ({ from: edge.from, to: edge.to }));
+      drawGraph();
+      return;
+    }
 
-    mstEdges.push({ from: minEdge.from, to: minEdge.to });
+    // Thêm cạnh vào MST
+    mstEdges.push(minEdge);
     totalWeight += minEdge.weight;
     visited.add(minEdge.from);
     visited.add(minEdge.to);
   }
 
-  foundPath = mstEdges;
-  displayResult(`Prim MST:\n${mstEdges.map(e => `${e.from} -> ${e.to} (${minEdge.weight})`).join('\n')}\nTotal weight: ${totalWeight}`);
+  // Hiển thị kết quả
+  foundPath = mstEdges.map(edge => ({ from: edge.from, to: edge.to }));
+  displayResult(
+    `Prim MST:\n${mstEdges.map(e => `${e.from} -> ${e.to} (${e.weight})`).join('\n')}\n` +
+    `Total weight: ${totalWeight}`
+  );
   drawGraph();
 }
 
@@ -692,13 +722,13 @@ function runAlgorithm(algorithm) {
   const startNode = document.getElementById('startNode').value.trim();
   const endNode = document.getElementById('endNode').value.trim();
 
-  if (!startNode) {
+  if (!startNode && algorithm !== 'prim' && algorithm !== 'kruskal') {
     displayResult('Vui lòng nhập điểm đầu!');
     return;
   }
 
   const startNodeExists = graph.nodes.some(node => node.id === startNode);
-  if (!startNodeExists) {
+  if (!startNodeExists && algorithm !== 'prim' && algorithm !== 'kruskal') {
     displayResult('Điểm đầu không tồn tại trong đồ thị!');
     return;
   }
