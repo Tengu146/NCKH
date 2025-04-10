@@ -60,14 +60,27 @@ function drawGraph() {
   graph.directed = document.getElementById('isDirected').checked;
   graph.multigraph = document.getElementById('isMultigraph').checked;
 
-  // Nhóm các cạnh để xử lý đa đồ thị
+  // Nhóm các cạnh để xử lý đa đồ thị và cạnh đối ngược
   const edgeGroups = {};
+  const oppositeEdges = new Set();
+  const directedMultiEdgeGroups = {};
+
   graph.edges.forEach((edge, index) => {
     let key;
     if (graph.multigraph) {
       key = `${edge.from}->${edge.to}-${index}`;
+      if (graph.directed) {
+        const multiKey = `${edge.from}-${edge.to}`;
+        if (!directedMultiEdgeGroups[multiKey]) directedMultiEdgeGroups[multiKey] = [];
+        directedMultiEdgeGroups[multiKey].push({ ...edge, index });
+      }
     } else if (graph.directed) {
       key = `${edge.from}-${edge.to}`;
+      const reverseKey = `${edge.to}-${edge.from}`;
+      if (graph.edges.some(e => e.from === edge.to && e.to === edge.from)) {
+        oppositeEdges.add(key);
+        oppositeEdges.add(reverseKey);
+      }
     } else {
       key = [edge.from, edge.to].sort().join('-');
     }
@@ -75,7 +88,7 @@ function drawGraph() {
     edgeGroups[key].push({ ...edge, index });
   });
 
-  // Vẽ các cạnh
+  // Vẽ các cạnh bình thường
   for (const key in edgeGroups) {
     const edges = edgeGroups[key];
     edges.forEach((edge, idx) => {
@@ -88,23 +101,39 @@ function drawGraph() {
         const midX = (fromNode.x + toNode.x) / 2;
         const midY = (fromNode.y + toNode.y) / 2;
 
-        if (edge.from === edge.to) { // Vòng lặp
+        if (edge.from === edge.to) {
           drawLoop(ctx, fromNode.x, fromNode.y);
           ctx.fillStyle = '#333';
           ctx.font = '12px Arial';
           ctx.fillText(edge.weight, fromNode.x + 25, fromNode.y - 35);
-        } else if (graph.multigraph && edges.length > 1) { // Đa đồ thị
+        } else if (graph.multigraph && graph.directed) {
+          const multiKey = `${edge.from}-${edge.to}`;
+          const multiEdges = directedMultiEdgeGroups[multiKey];
+          const multiIdx = multiEdges.findIndex(e => e.index === edge.index);
+          drawCurvedEdge(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y, multiIdx, multiEdges.length);
+          ctx.fillStyle = '#333';
+          ctx.font = '12px Arial';
+          const weightOffset = 50 * (multiIdx - (multiEdges.length - 1) / 2);
+          ctx.fillText(edge.weight, midX + weightOffset, midY + (weightOffset > 0 ? 15 : -15));
+        } else if (graph.multigraph) {
           drawCurvedEdge(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y, idx, edges.length);
           ctx.fillStyle = '#333';
           ctx.font = '12px Arial';
           const weightOffset = 50 * (idx - (edges.length - 1) / 2);
           ctx.fillText(edge.weight, midX + weightOffset, midY + (weightOffset > 0 ? 15 : -15));
-        } else if (graph.directed) { // Đồ thị có hướng
+        } else if (graph.directed && oppositeEdges.has(key)) {
+          const isReverse = edge.from > edge.to;
+          drawCurvedEdge(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y, isReverse ? 1 : 0, 2);
+          ctx.fillStyle = '#333';
+          ctx.font = '12px Arial';
+          const weightOffset = isReverse ? 15 : -15;
+          ctx.fillText(edge.weight, midX, midY + weightOffset);
+        } else if (graph.directed) {
           drawArrow(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y);
           ctx.fillStyle = '#333';
           ctx.font = '12px Arial';
           ctx.fillText(edge.weight, midX, midY - 10);
-        } else { // Đồ thị vô hướng
+        } else {
           ctx.beginPath();
           ctx.moveTo(fromNode.x, fromNode.y);
           ctx.lineTo(toNode.x, toNode.y);
@@ -117,16 +146,32 @@ function drawGraph() {
     });
   }
 
-  // Vẽ đường đi tìm được (nếu có)
+  // Vẽ đường đi tìm được (nổi bật hơn)
   if (foundPath.length > 0) {
-    ctx.strokeStyle = '#ff4444';
-    ctx.lineWidth = 3;
-    foundPath.forEach(edge => {
+    ctx.strokeStyle = '#FF0000'; // Màu đỏ tươi nổi bật
+    ctx.lineWidth = 5; // Độ dày lớn hơn
+    ctx.shadowBlur = 10; // Thêm bóng đổ
+    ctx.shadowColor = 'rgba(255, 0, 0, 0.5)'; // Bóng đỏ nhạt
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+
+    foundPath.forEach((edge, idx) => {
       const fromNode = graph.nodes.find(node => node.id === edge.from);
       const toNode = graph.nodes.find(node => node.id === edge.to);
       if (fromNode && toNode) {
+        const multiKey = `${edge.from}-${edge.to}`;
+        const multiEdges = graph.directed && graph.multigraph && directedMultiEdgeGroups[multiKey] 
+          ? directedMultiEdgeGroups[multiKey] 
+          : [{ from: edge.from, to: edge.to }];
+        const multiIdx = idx % multiEdges.length; // Tái sử dụng chỉ số nếu cần
+
         if (fromNode.id === toNode.id) {
           drawLoop(ctx, fromNode.x, fromNode.y);
+        } else if (graph.multigraph && graph.directed && multiEdges.length > 1) {
+          drawCurvedEdge(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y, multiIdx, multiEdges.length);
+        } else if (graph.directed && oppositeEdges.has(`${edge.from}-${edge.to}`)) {
+          const isReverse = edge.from > edge.to;
+          drawCurvedEdge(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y, isReverse ? 1 : 0, 2);
         } else if (graph.directed) {
           drawArrow(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y);
         } else {
@@ -137,9 +182,14 @@ function drawGraph() {
         }
       }
     });
+
+    // Reset bóng đổ để không ảnh hưởng đến các phần tử khác
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
   }
 
-  // Vẽ các nút
+  // Vẽ các nút (giữ nguyên)
   graph.nodes.forEach(node => {
     ctx.beginPath();
     ctx.arc(node.x, node.y, 15, 0, 2 * Math.PI);
