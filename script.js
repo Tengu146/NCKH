@@ -53,6 +53,46 @@ function displayGraphType() {
   document.getElementById('graphType').textContent = typeText;
 }
 
+function drawCurvedEdge(ctx, x1, y1, x2, y2, index, total) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const angle = Math.atan2(dy, dx);
+  const offset = 20 * (index - (total - 1) / 2);
+  const cx = (x1 + x2) / 2 + offset * Math.cos(angle + Math.PI / 2);
+  const cy = (y1 + y2) / 2 + offset * Math.sin(angle + Math.PI / 2);
+
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.quadraticCurveTo(cx, cy, x2, y2);
+  ctx.stroke();
+
+  if (graph.directed) {
+    const t = 0.75;
+    const arrowX = (1 - t) * (1 - t) * x1 + 2 * (1 - t) * t * cx + t * t * x2;
+    const arrowY = (1 - t) * (1 - t) * y1 + 2 * (1 - t) * t * cy + t * t * y2;
+    const tangentAngle = Math.atan2(
+      2 * (1 - t) * (cy - y1) + 2 * t * (y2 - cy),
+      2 * (1 - t) * (cx - x1) + 2 * t * (x2 - cx)
+    );
+    const headLength = 10;
+    const adjustedArrowX = arrowX - 15 * Math.cos(tangentAngle);
+    const adjustedArrowY = arrowY - 15 * Math.sin(tangentAngle);
+
+    ctx.beginPath();
+    ctx.moveTo(arrowX, arrowY);
+    ctx.lineTo(
+      adjustedArrowX - headLength * Math.cos(tangentAngle - Math.PI / 6),
+      adjustedArrowY - headLength * Math.sin(tangentAngle - Math.PI / 6)
+    );
+    ctx.moveTo(arrowX, arrowY);
+    ctx.lineTo(
+      adjustedArrowX - headLength * Math.cos(tangentAngle + Math.PI / 6),
+      adjustedArrowY - headLength * Math.sin(tangentAngle + Math.PI / 6)
+    );
+    ctx.stroke();
+  }
+}
+
 function drawGraph() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.imageSmoothingEnabled = true;
@@ -60,7 +100,6 @@ function drawGraph() {
   graph.directed = document.getElementById('isDirected').checked;
   graph.multigraph = document.getElementById('isMultigraph').checked;
 
-  // Nhóm các cạnh để xử lý đa đồ thị và cạnh đối ngược
   const edgeGroups = {};
   const oppositeEdges = new Set();
   const directedMultiEdgeGroups = {};
@@ -75,10 +114,11 @@ function drawGraph() {
         directedMultiEdgeGroups[multiKey].push({ ...edge, index });
       }
     } else if (graph.directed) {
-      key = `${edge.from}-${edge.to}`;
+      key = `${edge.from}-${edge.to}-${index}`;
+      const forwardKey = `${edge.from}-${edge.to}`;
       const reverseKey = `${edge.to}-${edge.from}`;
       if (graph.edges.some(e => e.from === edge.to && e.to === edge.from)) {
-        oppositeEdges.add(key);
+        oppositeEdges.add(forwardKey);
         oppositeEdges.add(reverseKey);
       }
     } else {
@@ -88,7 +128,6 @@ function drawGraph() {
     edgeGroups[key].push({ ...edge, index });
   });
 
-  // Vẽ các cạnh bình thường
   for (const key in edgeGroups) {
     const edges = edgeGroups[key];
     edges.forEach((edge, idx) => {
@@ -113,21 +152,29 @@ function drawGraph() {
           drawCurvedEdge(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y, multiIdx, multiEdges.length);
           ctx.fillStyle = '#333';
           ctx.font = '12px Arial';
-          const weightOffset = 50 * (multiIdx - (multiEdges.length - 1) / 2);
-          ctx.fillText(edge.weight, midX + weightOffset, midY + (weightOffset > 0 ? 15 : -15));
+          const offset = 50 * (multiIdx - (multiEdges.length - 1) / 2);
+          ctx.fillText(edge.weight, midX + offset, midY + (offset > 0 ? 15 : -15));
         } else if (graph.multigraph) {
           drawCurvedEdge(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y, idx, edges.length);
           ctx.fillStyle = '#333';
           ctx.font = '12px Arial';
-          const weightOffset = 50 * (idx - (edges.length - 1) / 2);
-          ctx.fillText(edge.weight, midX + weightOffset, midY + (weightOffset > 0 ? 15 : -15));
-        } else if (graph.directed && oppositeEdges.has(key)) {
-          const isReverse = edge.from > edge.to;
-          drawCurvedEdge(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y, isReverse ? 1 : 0, 2);
+          const offset = 50 * (idx - (edges.length - 1) / 2);
+          ctx.fillText(edge.weight, midX + offset, midY + (offset > 0 ? 15 : -15));
+        } else if (graph.directed && oppositeEdges.has(`${edge.from}-${edge.to}`)) {
+          const reverseKey = `${edge.to}-${edge.from}`;
+          const isReverse = graph.edges.some(e => e.from === edge.to && e.to === edge.from && e.index < edge.index);
+          const pairCount = (edgeGroups[key]?.length || 0) + (Object.keys(edgeGroups).filter(k => k.startsWith(reverseKey)).length || 0);
+          const idxInGroup = edgeGroups[key].findIndex(e => e.index === edge.index);
+          const idx = isReverse
+            ? (Object.keys(edgeGroups).filter(k => k.startsWith(reverseKey)).length || 0) + idxInGroup
+            : idxInGroup;
+
+          drawCurvedEdge(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y, idx, pairCount || 2);
           ctx.fillStyle = '#333';
           ctx.font = '12px Arial';
-          const weightOffset = isReverse ? 15 : -15;
-          ctx.fillText(edge.weight, midX, midY + weightOffset);
+          const weightOffsetX = isReverse ? 10 : -10;
+          const weightOffsetY = isReverse ? 25 : -25;
+          ctx.fillText(edge.weight, midX + weightOffsetX, midY + weightOffsetY);
         } else if (graph.directed) {
           drawArrow(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y);
           ctx.fillStyle = '#333';
@@ -146,7 +193,6 @@ function drawGraph() {
     });
   }
 
-  // Vẽ đường đi tìm được (nổi bật hơn)
   if (foundPath.length > 0) {
     ctx.strokeStyle = '#FF0000';
     ctx.lineWidth = 5;
@@ -159,19 +205,21 @@ function drawGraph() {
       const fromNode = graph.nodes.find(node => node.id === edge.from);
       const toNode = graph.nodes.find(node => node.id === edge.to);
       if (fromNode && toNode) {
-        const multiKey = `${edge.from}-${edge.to}`;
-        const multiEdges = graph.directed && graph.multigraph && directedMultiEdgeGroups[multiKey] 
-          ? directedMultiEdgeGroups[multiKey] 
-          : [{ from: edge.from, to: edge.to }];
-        const multiIdx = idx % multiEdges.length;
+        const key = `${edge.from}-${edge.to}`;
+        const reverseKey = `${edge.to}-${edge.from}`;
+        const isReverse = graph.edges.some(e => e.from === edge.to && e.to === edge.from && e.index < edge.index);
+        const pairCount = (edgeGroups[key]?.length || 0) + (Object.keys(edgeGroups).filter(k => k.startsWith(reverseKey)).length || 0);
+        const idxInGroup = edgeGroups[key]?.findIndex(e => e.index === edge.index) ?? 0;
+        const idxFinal = isReverse
+          ? (Object.keys(edgeGroups).filter(k => k.startsWith(reverseKey)).length || 0) + idxInGroup
+          : idxInGroup;
 
-        if (fromNode.id === toNode.id) {
+        if (edge.from === edge.to) {
           drawLoop(ctx, fromNode.x, fromNode.y);
-        } else if (graph.multigraph && graph.directed && multiEdges.length > 1) {
-          drawCurvedEdge(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y, multiIdx, multiEdges.length);
-        } else if (graph.directed && oppositeEdges.has(`${edge.from}-${edge.to}`)) {
-          const isReverse = edge.from > edge.to;
-          drawCurvedEdge(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y, isReverse ? 1 : 0, 2);
+        } else if (graph.multigraph && graph.directed && pairCount > 1) {
+          drawCurvedEdge(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y, idxFinal, pairCount);
+        } else if (graph.directed && oppositeEdges.has(key)) {
+          drawCurvedEdge(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y, idxFinal, pairCount || 2);
         } else if (graph.directed) {
           drawArrow(ctx, fromNode.x, fromNode.y, toNode.x, toNode.y);
         } else {
@@ -221,6 +269,7 @@ function drawGraph() {
 function processFile(file) {
   graph.nodes = [];
   graph.edges = [];
+  foundPath = [];
   const nodesSet = new Set();
   const fileExtension = file.name.split('.').pop().toLowerCase();
 
@@ -279,6 +328,7 @@ function parseLines(lines, nodesSet) {
 function parseManualInput() {
   graph.nodes = [];
   graph.edges = [];
+  foundPath = [];
   const nodesSet = new Set();
   const graphData = document.getElementById('graphData').value.trim();
   const lines = graphData.split('\n').filter(line => line.trim() !== '');
@@ -345,33 +395,6 @@ function drawArrow(ctx, fromX, fromY, toX, toY) {
   ctx.stroke();
 }
 
-function drawCurvedEdge(ctx, fromX, fromY, toX, toY, edgeIndex, totalEdges) {
-  const dx = toX - fromX;
-  const dy = toY - fromY;
-  const midX = (fromX + toX) / 2;
-  const midY = (fromY + toY) / 2;
-  const offset = 50 * (edgeIndex - (totalEdges - 1) / 2);
-
-  ctx.beginPath();
-  ctx.moveTo(fromX, fromY);
-  ctx.quadraticCurveTo(midX + offset, midY + offset, toX, toY);
-  ctx.stroke();
-
-  if (graph.directed) {
-    const angle = Math.atan2(toY - midY, toX - midX);
-    const headLength = 10;
-    const adjustedToX = toX - 15 * Math.cos(angle);
-    const adjustedToY = toY - 15 * Math.sin(angle);
-
-    ctx.beginPath();
-    ctx.moveTo(adjustedToX, adjustedToY);
-    ctx.lineTo(adjustedToX - headLength * Math.cos(angle - Math.PI / 6), adjustedToY - headLength * Math.sin(angle - Math.PI / 6));
-    ctx.moveTo(adjustedToX, adjustedToY);
-    ctx.lineTo(adjustedToX - headLength * Math.cos(angle + Math.PI / 6), adjustedToY - headLength * Math.sin(angle + Math.PI / 6));
-    ctx.stroke();
-  }
-}
-
 function drawLoop(ctx, x, y) {
   ctx.beginPath();
   ctx.arc(x + 25, y - 25, 15, 0, 2 * Math.PI);
@@ -392,7 +415,6 @@ function clearGraph() {
   document.getElementById('graphType').textContent = 'Loại đồ thị: Chưa xác định';
 }
 
-// Hàm lấy danh sách đỉnh kề
 function getNeighbors(node) {
   const neighbors = new Set();
   
@@ -408,7 +430,6 @@ function getNeighbors(node) {
   return Array.from(neighbors);
 }
 
-// DFS (toàn đồ thị)
 function dfsGeneral() {
   const visited = new Set();
   const traversalOrder = [];
@@ -439,7 +460,6 @@ function dfsGeneral() {
   drawGraph();
 }
 
-// BFS (toàn đồ thị)
 function bfsGeneral() {
   const visited = new Set();
   const traversalOrder = [];
@@ -846,7 +866,6 @@ function runAlgorithm(algorithm) {
   const startNode = document.getElementById('startNode').value.trim();
   const endNode = document.getElementById('endNode').value.trim();
 
-  // Chỉ kiểm tra startNode nếu không phải dfsGeneral, bfsGeneral, prim, hoặc kruskal
   if (!['dfsGeneral', 'bfsGeneral', 'prim', 'kruskal'].includes(algorithm)) {
     if (!startNode) {
       displayResult('Vui lòng nhập điểm đầu!');
