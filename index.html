@@ -53,8 +53,10 @@
       <h2>Cấu hình thuật toán</h2>
       <label for="algorithm">Thuật toán:</label>
       <select id="algorithm">
-        <option value="dfs">DFS</option>
-        <option value="bfs">BFS</option>
+        <option value="dfs">DFS (từ điểm đầu)</option>
+        <option value="bfs">BFS (từ điểm đầu)</option>
+        <option value="dfsGeneral">DFS (toàn đồ thị)</option>
+        <option value="bfsGeneral">BFS (toàn đồ thị)</option>
         <option value="dijkstra">Dijkstra</option>
         <option value="kruskal">Kruskal</option>
         <option value="prim">Prim</option>
@@ -90,7 +92,5 @@
   </main>
 
   <script src="script.js"></script>
-  <!-- Xóa đoạn script Cloudflare khi chạy cục bộ -->
-  <!-- <script>(function(){...})();</script> -->
 </body>
 </html>

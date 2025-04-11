@@ -148,10 +148,10 @@ function drawGraph() {
 
   // Vẽ đường đi tìm được (nổi bật hơn)
   if (foundPath.length > 0) {
-    ctx.strokeStyle = '#FF0000'; // Màu đỏ tươi nổi bật
-    ctx.lineWidth = 5; // Độ dày lớn hơn
-    ctx.shadowBlur = 10; // Thêm bóng đổ
-    ctx.shadowColor = 'rgba(255, 0, 0, 0.5)'; // Bóng đỏ nhạt
+    ctx.strokeStyle = '#FF0000';
+    ctx.lineWidth = 5;
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = 'rgba(255, 0, 0, 0.5)';
     ctx.shadowOffsetX = 2;
     ctx.shadowOffsetY = 2;
 
@@ -163,7 +163,7 @@ function drawGraph() {
         const multiEdges = graph.directed && graph.multigraph && directedMultiEdgeGroups[multiKey] 
           ? directedMultiEdgeGroups[multiKey] 
           : [{ from: edge.from, to: edge.to }];
-        const multiIdx = idx % multiEdges.length; // Tái sử dụng chỉ số nếu cần
+        const multiIdx = idx % multiEdges.length;
 
         if (fromNode.id === toNode.id) {
           drawLoop(ctx, fromNode.x, fromNode.y);
@@ -183,13 +183,11 @@ function drawGraph() {
       }
     });
 
-    // Reset bóng đổ để không ảnh hưởng đến các phần tử khác
     ctx.shadowBlur = 0;
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 0;
   }
 
-  // Vẽ các nút (giữ nguyên)
   graph.nodes.forEach(node => {
     ctx.beginPath();
     ctx.arc(node.x, node.y, 15, 0, 2 * Math.PI);
@@ -394,6 +392,89 @@ function clearGraph() {
   document.getElementById('graphType').textContent = 'Loại đồ thị: Chưa xác định';
 }
 
+// Hàm lấy danh sách đỉnh kề
+function getNeighbors(node) {
+  const neighbors = new Set();
+  
+  graph.edges.forEach(edge => {
+    if (edge.from === node) {
+      neighbors.add(edge.to);
+    }
+    if (!graph.directed && edge.to === node) {
+      neighbors.add(edge.from);
+    }
+  });
+  
+  return Array.from(neighbors);
+}
+
+// DFS (toàn đồ thị)
+function dfsGeneral() {
+  const visited = new Set();
+  const traversalOrder = [];
+  const edgesUsed = [];
+
+  function dfs(node) {
+    if (visited.has(node)) return;
+    visited.add(node);
+    traversalOrder.push(node);
+
+    const neighbors = getNeighbors(node);
+    for (let neighbor of neighbors) {
+      if (!visited.has(neighbor)) {
+        edgesUsed.push({ from: node, to: neighbor });
+        dfs(neighbor);
+      }
+    }
+  }
+
+  graph.nodes.forEach(node => {
+    if (!visited.has(node.id)) {
+      dfs(node.id);
+    }
+  });
+
+  displayResult(`DFS (toàn đồ thị): ${traversalOrder.join(' -> ')}`);
+  foundPath = edgesUsed;
+  drawGraph();
+}
+
+// BFS (toàn đồ thị)
+function bfsGeneral() {
+  const visited = new Set();
+  const traversalOrder = [];
+  const edgesUsed = [];
+
+  function bfs(start) {
+    const queue = [start];
+    visited.add(start);
+
+    while (queue.length > 0) {
+      const node = queue.shift();
+      traversalOrder.push(node);
+
+      const neighbors = getNeighbors(node);
+      for (let neighbor of neighbors) {
+        if (!visited.has(neighbor)) {
+          visited.add(neighbor);
+          queue.push(neighbor);
+          edgesUsed.push({ from: node, to: neighbor });
+        }
+      }
+    }
+  }
+
+  graph.nodes.forEach(node => {
+    if (!visited.has(node.id)) {
+      bfs(node.id);
+    }
+  });
+
+  displayResult(`BFS (toàn đồ thị): ${traversalOrder.join(' -> ')}`);
+  foundPath = edgesUsed;
+  drawGraph();
+}
+
 function dfs(start) {
   const visited = new Set();
   const path = [];
@@ -557,7 +638,6 @@ function kruskal() {
   drawGraph();
 }
 
-// Hàm Prim đã chỉnh sửa
 function prim() {
   if (graph.directed) {
     displayResult('Prim chỉ áp dụng cho đồ thị vô hướng!');
@@ -572,11 +652,9 @@ function prim() {
   const mstEdges = [];
   let totalWeight = 0;
 
-  // Bắt đầu từ nút đầu tiên
   const startNode = graph.nodes[0].id;
   visited.add(startNode);
 
-  // Nếu đồ thị là đa đồ thị, giữ tất cả cạnh; nếu không, chọn cạnh nhỏ nhất giữa hai nút
   const availableEdges = graph.multigraph
     ? [...graph.edges]
     : graph.edges.reduce((acc, edge) => {
@@ -593,7 +671,6 @@ function prim() {
     let minEdge = null;
     let minWeight = Infinity;
 
-    // Tìm cạnh có trọng số nhỏ nhất nối từ tập đã thăm đến tập chưa thăm
     edgesList.forEach(edge => {
       const fromIn = visited.has(edge.from);
       const toIn = visited.has(edge.to);
@@ -603,7 +680,6 @@ function prim() {
       }
     });
 
-    // Nếu không tìm thấy cạnh nào, đồ thị không liên thông
     if (!minEdge) {
       const unvisited = graph.nodes.filter(node => !visited.has(node.id)).map(n => n.id);
       displayResult(
@@ -616,14 +692,12 @@ function prim() {
       return;
     }
 
-    // Thêm cạnh vào MST
     mstEdges.push(minEdge);
     totalWeight += minEdge.weight;
     visited.add(minEdge.from);
     visited.add(minEdge.to);
   }
 
-  // Hiển thị kết quả
   foundPath = mstEdges.map(edge => ({ from: edge.from, to: edge.to }));
   displayResult(
     `Prim MST:\n${mstEdges.map(e => `${e.from} -> ${e.to} (${e.weight})`).join('\n')}\n` +
@@ -772,15 +846,17 @@ function runAlgorithm(algorithm) {
   const startNode = document.getElementById('startNode').value.trim();
   const endNode = document.getElementById('endNode').value.trim();
 
-  if (!startNode && algorithm !== 'prim' && algorithm !== 'kruskal') {
-    displayResult('Vui lòng nhập điểm đầu!');
-    return;
-  }
-
-  const startNodeExists = graph.nodes.some(node => node.id === startNode);
-  if (!startNodeExists && algorithm !== 'prim' && algorithm !== 'kruskal') {
-    displayResult('Điểm đầu không tồn tại trong đồ thị!');
-    return;
+  // Chỉ kiểm tra startNode nếu không phải dfsGeneral, bfsGeneral, prim, hoặc kruskal
+  if (!['dfsGeneral', 'bfsGeneral', 'prim', 'kruskal'].includes(algorithm)) {
+    if (!startNode) {
+      displayResult('Vui lòng nhập điểm đầu!');
+      return;
+    }
+    const startNodeExists = graph.nodes.some(node => node.id === startNode);
+    if (!startNodeExists) {
+      displayResult('Điểm đầu không tồn tại trong đồ thị!');
+      return;
+    }
   }
 
   const endNodeExists = graph.nodes.some(node => node.id === endNode);
@@ -811,6 +887,12 @@ function runAlgorithm(algorithm) {
       break;
     case 'bfs':
       bfs(startNode);
+      break;
+    case 'dfsGeneral':
+      dfsGeneral();
+      break;
+    case 'bfsGeneral':
+      bfsGeneral();
       break;
     case 'dijkstra':
       dijkstra(startNode, endNode);
