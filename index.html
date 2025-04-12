@@ -71,6 +71,18 @@
       <input type="text" id="endNode" placeholder="Nhập điểm cuối">
       <button id="run">Chạy Thuật Toán</button>
 
+      <h2>Điều khiển mô phỏng</h2>
+      <div id="simulation-controls">
+        <button id="play-btn" class="control-btn" title="Phát">▶</button>
+        <button id="pause-btn" class="control-btn" title="Tạm dừng" disabled>⏸</button>
+        <button id="step-btn" class="control-btn" title="Bước tiếp theo">⏩</button>
+        <button id="reset-btn" class="control-btn" title="Đặt lại">⟲</button>
+        <div class="speed-control">
+          <label for="speed-slider">Tốc độ:</label>
+          <input type="range" id="speed-slider" min="1" max="10" value="5">
+        </div>
+      </div>
+
       <h2>Kết quả</h2>
       <label for="result">Kết quả:</label>
       <textarea id="result" rows="10" cols="50" readonly></textarea>

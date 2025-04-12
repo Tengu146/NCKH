@@ -107,3 +107,82 @@ button:hover {
   height: 100%;
   background-color: white;
 }
+
+/* Simulation Controls */
+#simulation-controls {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 10px;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+
+.control-btn {
+  margin: 0 5px;
+  width: 40px;
+  height: 40px;
+  font-size: 18px;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 50%;
+  background-color: #4CAF50;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.control-btn:hover {
+  background-color: #45a049;
+}
+
+.control-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.speed-control {
+  display: flex;
+  align-items: center;
+  margin-left: 15px;
+}
+
+.speed-control label {
+  margin-right: 10px;
+}
+
+#speed-slider {
+  width: 100px;
+}
+
+/* Animation styles */
+.node {
+  transition: fill 0.3s ease;
+}
+
+.edge {
+  transition: stroke 0.3s ease, stroke-width 0.3s ease;
+}
+
+.current-node {
+  fill: #ff9800 !important;
+  stroke: #e65100;
+  stroke-width: 2px;
+}
+
+.visited-node {
+  fill: #9c27b0 !important;
+}
+
+.in-queue-node {
+  stroke: #2196F3;
+  stroke-width: 2px;
+}
+
+.current-edge {
+  stroke: #ff9800 !important;
+  stroke-width: 3px;
+}
