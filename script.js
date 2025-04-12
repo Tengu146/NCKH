@@ -1562,41 +1562,481 @@ function generateDijkstraSteps(startNode, endNode) {
 // Placeholder implementations for other algorithms
 function generateDFSGeneralSteps() {
   const steps = [];
+  const visited = new Set();
+  const edges = [];
+  const stack = [];
+  
+  function dfs(node) {
+    stack.push(node);
+    visited.add(node);
+    
+    steps.push({
+      description: `Bắt đầu thăm nút ${node}`,
+      currentNode: node,
+      visitedNodes: Array.from(visited),
+      queueNodes: Array.from(stack),
+      path: [...edges]
+    });
+    
+    const neighbors = getNeighbors(node).filter(n => !visited.has(n));
+    
+    for (let neighbor of neighbors) {
+      const currentEdge = { from: node, to: neighbor };
+      edges.push(currentEdge);
+      
+      steps.push({
+        description: `Thêm cạnh ${node} -> ${neighbor} vào đường đi`,
+        currentEdge: currentEdge,
+        currentNode: node,
+        visitedNodes: Array.from(visited),
+        queueNodes: Array.from(stack),
+        path: [...edges]
+      });
+      
+      if (!visited.has(neighbor)) {
+        dfs(neighbor);
+      }
+    }
+    
+    stack.pop();
+    
+    steps.push({
+      description: `Hoàn thành thăm nút ${node}`,
+      visitedNodes: Array.from(visited),
+      queueNodes: Array.from(stack),
+      path: [...edges]
+    });
+  }
+  
   steps.push({
-    description: "DFS toàn đồ thị: Chức năng đang được phát triển",
+    description: "Bắt đầu DFS trên toàn đồ thị",
+    visitedNodes: [],
+    queueNodes: [],
+    path: []
   });
+  
+  graph.nodes.forEach(node => {
+    if (!visited.has(node.id)) {
+      steps.push({
+        description: `Khám phá thành phần liên thông mới từ nút ${node.id}`,
+        currentNode: node.id,
+        visitedNodes: Array.from(visited),
+        queueNodes: Array.from(stack),
+        path: [...edges]
+      });
+      dfs(node.id);
+    }
+  });
+  
+  steps.push({
+    description: `DFS toàn đồ thị hoàn tất. Tổng số nút được thăm: ${visited.size}`,
+    visitedNodes: Array.from(visited),
+    path: [...edges]
+  });
+  
   animationState.algorithmSteps = steps;
 }
 
 function generateBFSGeneralSteps() {
   const steps = [];
+  const visited = new Set();
+  const queue = [];
+  const edges = [];
+  const parent = {};
+  
+  function bfs(startNode) {
+    queue.push(startNode);
+    visited.add(startNode);
+    
+    steps.push({
+      description: `Bắt đầu BFS từ nút ${startNode}`,
+      currentNode: startNode,
+      visitedNodes: Array.from(visited),
+      queueNodes: Array.from(queue),
+      path: [...edges]
+    });
+    
+    while (queue.length > 0) {
+      const node = queue.shift();
+      
+      steps.push({
+        description: `Xử lý nút ${node} từ hàng đợi`,
+        currentNode: node,
+        visitedNodes: Array.from(visited),
+        queueNodes: Array.from(queue),
+        path: [...edges]
+      });
+      
+      const neighbors = getNeighbors(node);
+      
+      for (const neighbor of neighbors) {
+        if (!visited.has(neighbor)) {
+          visited.add(neighbor);
+          queue.push(neighbor);
+          parent[neighbor] = node;
+          
+          const currentEdge = { from: node, to: neighbor };
+          edges.push(currentEdge);
+          
+          steps.push({
+            description: `Thêm cạnh ${node} -> ${neighbor} vào đường đi và nút ${neighbor} vào hàng đợi`,
+            currentEdge: currentEdge,
+            currentNode: node,
+            visitedNodes: Array.from(visited),
+            queueNodes: Array.from(queue),
+            path: [...edges]
+          });
+        }
+      }
+      
+      if (queue.length > 0) {
+        steps.push({
+          description: `Hoàn thành xử lý nút ${node}, tiếp tục với nút tiếp theo`,
+          visitedNodes: Array.from(visited),
+          queueNodes: Array.from(queue),
+          path: [...edges]
+        });
+      }
+    }
+  }
+  
   steps.push({
-    description: "BFS toàn đồ thị: Chức năng đang được phát triển",
+    description: "Bắt đầu BFS trên toàn đồ thị",
+    visitedNodes: [],
+    queueNodes: [],
+    path: []
   });
+  
+  graph.nodes.forEach(node => {
+    if (!visited.has(node.id)) {
+      steps.push({
+        description: `Khám phá thành phần liên thông mới từ nút ${node.id}`,
+        currentNode: node.id,
+        visitedNodes: Array.from(visited),
+        queueNodes: Array.from(queue),
+        path: [...edges]
+      });
+      bfs(node.id);
+    }
+  });
+  
+  steps.push({
+    description: `BFS toàn đồ thị hoàn tất. Tổng số nút được thăm: ${visited.size}`,
+    visitedNodes: Array.from(visited),
+    path: [...edges]
+  });
+  
   animationState.algorithmSteps = steps;
 }
-
 function generateKruskalSteps() {
+  if (graph.directed) {
+    animationState.algorithmSteps = [{
+      description: "Kruskal chỉ áp dụng cho đồ thị vô hướng!",
+    }];
+    return;
+  }
+  
   const steps = [];
+  const parent = {};
+  const rank = {};
+  const edges = [];
+  let totalWeight = 0;
+  
+  function find(node) {
+    if (!parent[node]) parent[node] = node;
+    if (parent[node] !== node) parent[node] = find(parent[node]);
+    return parent[node];
+  }
+  
+  function union(node1, node2) {
+    const root1 = find(node1);
+    const root2 = find(node2);
+    if (root1 !== root2) {
+      if (!rank[root1]) rank[root1] = 0;
+      if (!rank[root2]) rank[root2] = 0;
+      if (rank[root1] < rank[root2]) parent[root1] = root2;
+      else if (rank[root1] > rank[root2]) parent[root2] = root1;
+      else {
+        parent[root2] = root1;
+        rank[root1]++;
+      }
+    }
+  }
+  
+  const sortedEdges = [...graph.edges].sort((a, b) => a.weight - b.weight);
+  
   steps.push({
-    description: "Kruskal MST: Chức năng đang được phát triển",
+    description: "Bắt đầu thuật toán Kruskal. Sắp xếp các cạnh theo trọng số.",
+    path: []
   });
+  
+  sortedEdges.forEach(edge => {
+    steps.push({
+      description: `Kiểm tra cạnh ${edge.from} -> ${edge.to} với trọng số ${edge.weight}`,
+      currentEdge: { from: edge.from, to: edge.to },
+      path: [...edges]
+    });
+    
+    if (find(edge.from) !== find(edge.to)) {
+      union(edge.from, edge.to);
+      edges.push({ from: edge.from, to: edge.to });
+      totalWeight += edge.weight;
+      
+      steps.push({
+        description: `Thêm cạnh ${edge.from} -> ${edge.to} vào MST. Tổng trọng số hiện tại: ${totalWeight}`,
+        currentEdge: { from: edge.from, to: edge.to },
+        path: [...edges]
+      });
+    } else {
+      steps.push({
+        description: `Bỏ qua cạnh ${edge.from} -> ${edge.to} vì tạo chu trình`,
+        currentEdge: { from: edge.from, to: edge.to },
+        path: [...edges]
+      });
+    }
+  });
+  
+  steps.push({
+    description: `Kruskal hoàn tất. MST có tổng trọng số: ${totalWeight}`,
+    path: [...edges]
+  });
+  
   animationState.algorithmSteps = steps;
 }
 
 function generatePrimSteps() {
+  if (graph.directed) {
+    animationState.algorithmSteps = [{
+      description: "Prim chỉ áp dụng cho đồ thị vô hướng!",
+    }];
+    return;
+  }
+  
+  if (graph.nodes.length === 0) {
+    animationState.algorithmSteps = [{
+      description: "Đồ thị không có nút nào!",
+    }];
+    return;
+  }
+  
   const steps = [];
+  const visited = new Set();
+  const edges = [];
+  let totalWeight = 0;
+  
+  const startNode = graph.nodes[0].id;
+  visited.add(startNode);
+  
+  const availableEdges = graph.multigraph
+    ? [...graph.edges]
+    : graph.edges.reduce((acc, edge) => {
+        const key = [edge.from, edge.to].sort().join('-');
+        if (!acc[key] || acc[key].weight > edge.weight) {
+          acc[key] = edge;
+        }
+        return acc;
+      }, {});
+  
+  const edgesList = graph.multigraph ? availableEdges : Object.values(availableEdges);
+  
   steps.push({
-    description: "Prim MST: Chức năng đang được phát triển",
+    description: `Bắt đầu thuật toán Prim từ nút ${startNode}`,
+    currentNode: startNode,
+    visitedNodes: Array.from(visited),
+    path: []
   });
+  
+  while (visited.size < graph.nodes.length) {
+    let minEdge = null;
+    let minWeight = Infinity;
+    
+    edgesList.forEach(edge => {
+      const fromIn = visited.has(edge.from);
+      const toIn = visited.has(edge.to);
+      if (fromIn !== toIn && edge.weight < minWeight) {
+        minEdge = edge;
+        minWeight = edge.weight;
+      }
+    });
+    
+    if (!minEdge) {
+      const unvisited = graph.nodes.filter(node => !visited.has(node.id)).map(n => n.id);
+      steps.push({
+        description: `Prim hoàn tất. Đồ thị không liên thông, các nút chưa được thêm: ${unvisited.join(', ')}`,
+        visitedNodes: Array.from(visited),
+        path: [...edges]
+      });
+      break;
+    }
+    
+    edges.push({ from: minEdge.from, to: minEdge.to });
+    totalWeight += minEdge.weight;
+    
+    const newNode = visited.has(minEdge.from) ? minEdge.to : minEdge.from;
+    visited.add(newNode);
+    
+    steps.push({
+      description: `Thêm cạnh ${minEdge.from} -> ${minEdge.to} (trọng số: ${minEdge.weight}) vào MST. Tổng trọng số: ${totalWeight}`,
+      currentEdge: { from: minEdge.from, to: minEdge.to },
+      currentNode: newNode,
+      visitedNodes: Array.from(visited),
+      path: [...edges]
+    });
+  }
+  
+  if (visited.size === graph.nodes.length) {
+    steps.push({
+      description: `Prim hoàn tất. MST có tổng trọng số: ${totalWeight}`,
+      visitedNodes: Array.from(visited),
+      path: [...edges]
+    });
+  }
+  
   animationState.algorithmSteps = steps;
 }
 
 function generateBellmanFordSteps(startNode) {
   const steps = [];
-  steps.push({
-    description: `Bellman-Ford từ nút ${startNode}: Chức năng đang được phát triển`,
+  const distances = {};
+  const prev = {};
+  const edges = [];
+  
+  graph.nodes.forEach(node => {
+    distances[node.id] = Infinity;
+    prev[node.id] = null;
   });
+  distances[startNode] = 0;
+  
+  steps.push({
+    description: `Khởi tạo Bellman-Ford từ nút ${startNode}. Khoảng cách đến ${startNode} = 0, các nút khác = ∞`,
+    currentNode: startNode,
+    customState: { distances: { ...distances }, prev: { ...prev } }
+  });
+  
+  for (let i = 0; i < graph.nodes.length - 1; i++) {
+    steps.push({
+      description: `Vòng lặp thứ ${i + 1}: Kiểm tra tất cả các cạnh`,
+      customState: { distances: { ...distances }, prev: { ...prev } }
+    });
+    
+    let updated = false;
+    
+    graph.edges.forEach(edge => {
+      const u = edge.from;
+      const v = edge.to;
+      const w = edge.weight;
+      
+      steps.push({
+        description: `Kiểm tra cạnh ${u} -> ${v} (trọng số: ${w})`,
+        currentEdge: { from: u, to: v },
+        customState: { distances: { ...distances }, prev: { ...prev } }
+      });
+      
+      if (distances[u] !== Infinity && distances[u] + w < distances[v]) {
+        distances[v] = distances[u] + w;
+        prev[v] = u;
+        updated = true;
+        
+        // Update edges for visualization
+        const existingEdgeIndex = edges.findIndex(e => e.to === v);
+        if (existingEdgeIndex !== -1) {
+          edges.splice(existingEdgeIndex, 1);
+        }
+        edges.push({ from: u, to: v });
+        
+        steps.push({
+          description: `Cập nhật khoảng cách đến ${v} = ${distances[v]} và đặt prev[${v}] = ${u}`,
+          currentEdge: { from: u, to: v },
+          currentNode: v,
+          customState: { distances: { ...distances }, prev: { ...prev } },
+          path: [...edges]
+        });
+      } else {
+        steps.push({
+          description: `Không cập nhật khoảng cách đến ${v} vì ${distances[u] === Infinity ? '∞' : distances[u] + w} ≥ ${distances[v] === Infinity ? '∞' : distances[v]}`,
+          currentEdge: { from: u, to: v },
+          customState: { distances: { ...distances }, prev: { ...prev } }
+        });
+      }
+      
+      if (!graph.directed) {
+        steps.push({
+          description: `Kiểm tra cạnh ngược ${v} -> ${u} (trọng số: ${w})`,
+          currentEdge: { from: v, to: u },
+          customState: { distances: { ...distances }, prev: { ...prev } }
+        });
+        
+        if (distances[v] !== Infinity && distances[v] + w < distances[u]) {
+          distances[u] = distances[v] + w;
+          prev[u] = v;
+          updated = true;
+          
+          const existingEdgeIndex = edges.findIndex(e => e.to === u);
+          if (existingEdgeIndex !== -1) {
+            edges.splice(existingEdgeIndex, 1);
+          }
+          edges.push({ from: v, to: u });
+          
+          steps.push({
+            description: `Cập nhật khoảng cách đến ${u} = ${distances[u]} và đặt prev[${u}] = ${v}`,
+            currentEdge: { from: v, to: u },
+            currentNode: u,
+            customState: { distances: { ...distances }, prev: { ...prev } },
+            path: [...edges]
+          });
+        } else {
+          steps.push({
+            description: `Không cập nhật khoảng cách đến ${u} vì ${distances[v] === Infinity ? '∞' : distances[v] + w} ≥ ${distances[u] === Infinity ? '∞' : distances[u]}`,
+            currentEdge: { from: v, to: u },
+            customState: { distances: { ...distances }, prev: { ...prev } }
+          });
+        }
+      }
+    });
+    
+    if (!updated) {
+      steps.push({
+        description: `Không có cập nhật nào trong vòng lặp ${i + 1}. Kết thúc sớm.`,
+        customState: { distances: { ...distances }, prev: { ...prev } },
+        path: [...edges]
+      });
+      break;
+    }
+  }
+  
+  // Kiểm tra chu trình âm
+  let hasNegativeCycle = false;
+  graph.edges.forEach(edge => {
+    const u = edge.from;
+    const v = edge.to;
+    const w = edge.weight;
+    
+    if (distances[u] !== Infinity && distances[u] + w < distances[v]) {
+      hasNegativeCycle = true;
+    }
+    if (!graph.directed && distances[v] !== Infinity && distances[v] + w < distances[u]) {
+      hasNegativeCycle = true;
+    }
+  });
+  
+  if (hasNegativeCycle) {
+    steps.push({
+      description: "Phát hiện chu trình âm! Thuật toán kết thúc.",
+      customState: { distances: { ...distances }, prev: { ...prev } }
+    });
+  } else {
+    let result = `Bellman-Ford hoàn tất. Khoảng cách từ ${startNode}:\n`;
+    graph.nodes.forEach(node => {
+      result += `${startNode} -> ${node.id}: ${distances[node.id] === Infinity ? '∞' : distances[node.id]}\n`;
+    });
+    
+    steps.push({
+      description: result,
+      customState: { distances: { ...distances }, prev: { ...prev } },
+      path: [...edges]
+    });
+  }
+  
   animationState.algorithmSteps = steps;
 }
 
