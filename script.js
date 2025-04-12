@@ -46,7 +46,7 @@ fileInput.addEventListener('change', () => {
   const file = fileInput.files[0];
   if (file) {
     fileNameDisplay.textContent = `Đã chọn: ${file.name}`;
-    processFile(file);
+    processFile(file, false); // Thêm tham số để không vẽ ngay
   } else {
     fileNameDisplay.textContent = 'Chưa có file nào được chọn';
   }
@@ -505,7 +505,7 @@ function drawGraph() {
   document.getElementById('graphInfo').textContent = infoText;
 }
 
-function processFile(file) {
+function processFile(file, drawImmediately = true) {
   graph.nodes = [];
   graph.edges = [];
   foundPath = [];
@@ -522,7 +522,11 @@ function processFile(file) {
       graph.multigraph = document.getElementById('isMultigraph').checked;
       generateGraphFromNodes(nodesSet);
       displayGraphType();
-      drawGraph();
+      if (drawImmediately) {
+        drawGraph();
+      } else {
+        displayResult('File đã được tải. Vui lòng kiểm tra cấu hình và nhấn "Vẽ Đồ Thị".');
+      }
     };
     reader.readAsText(file);
   } else if (fileExtension === 'xlsx') {
@@ -537,14 +541,17 @@ function processFile(file) {
       graph.multigraph = document.getElementById('isMultigraph').checked;
       generateGraphFromNodes(nodesSet);
       displayGraphType();
-      drawGraph();
+      if (drawImmediately) {
+        drawGraph();
+      } else {
+        displayResult('File đã được tải. Vui lòng kiểm tra cấu hình và nhấn "Vẽ Đồ Thị".');
+      }
     };
     reader.readAsArrayBuffer(file);
   } else {
     displayResult('Định dạng file không được hỗ trợ! Chỉ hỗ trợ .txt, .csv, .xlsx');
   }
 }
-
 function parseLines(lines, nodesSet) {
   for (let i = 0; i < lines.length; i++) {
     const parts = lines[i].trim().split(/[\s,]+/);
@@ -1753,8 +1760,16 @@ document.getElementById('drawGraphButton').addEventListener('click', () => {
   if (manualInputRadio.checked) {
     const isValidInput = parseManualInput();
     if (isValidInput) drawGraph();
-  } else {
-    displayResult('Vui lòng chọn file trước khi vẽ đồ thị!');
+  } else if (fileInputRadio.checked) {
+    if (graph.nodes.length > 0 || graph.edges.length > 0) {
+      // Dữ liệu đã được tải từ file, chỉ cần vẽ lại với cấu hình mới
+      graph.directed = document.getElementById('isDirected').checked;
+      graph.multigraph = document.getElementById('isMultigraph').checked;
+      displayGraphType();
+      drawGraph();
+    } else {
+      displayResult('Vui lòng tải file trước khi vẽ đồ thị!');
+    }
   }
 });
 
